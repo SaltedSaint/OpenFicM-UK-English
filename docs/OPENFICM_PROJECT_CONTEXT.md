@@ -254,6 +254,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-release.ps1
 - Release 资产 `OpenFicM-Android-0.10.2.apk`，132,589,940 字节（126.45 MiB），SHA-256 `2BA81DC02C09101549B38108E1C81FA1EF73AE260CB12500F42B97EB59A0442B`。
 - 未做真机验证：升级后首次启动的清理结果（用户机器上那两条“参考书已删除”的文风应消失）、删参考书/卷/章/作品是否确实不留残留，都要在真机上确认一次。
 
+### 0.10.3 发布记录
+
+- 用户反馈（GitHub issue #2、#3）：世界书条目编辑内容变长后“保存”按钮消失、无法保存；助手对话页进入、发送、任务完成、切页回来时频繁跳回顶部。修复提交 ce4442b。
+- 根因与修法：只有 maxHeight 的弹层里滚动容器默认 flexShrink 为 0，长内容被顶出可视区且滚不动，世界书、角色、结构化提问、助手页选择器、设置页模型/供应商弹层、写作页目录统一补 flexShrink: 1（笔记页与文风库此前已修）；助手页 load() 每次聚焦与 revision 变化都进整屏 loading、卸载重建 FlatList 导致滚动归零，改为仅切换作品时显示 loading，进入定位最新、仅底部跟随、切页保留位置，并新增“回到最新消息”悬浮按钮。
+- 静态检查：npm run type-check 与 --noUnusedLocals --noUnusedParameters 通过。
+- 构建：Gradle assembleRelease BUILD SUCCESSFUL（1m52s，583 个任务，无 GGUF 条目）；apksigner v2 通过、证书仍为 c5dd7c04…；aapt2 报 versionCode 21、versionName 0.10.3、minSdk 28、targetSdk 36、仅 arm64-v8a。
+- Release 资产 OpenFicM-Android-0.10.3.apk，132,591,768 字节（126.45 MiB），SHA-256 C519D1E444425614669F7782E63C9E4647F35C1099E9780F1AC2EDFA2A8CB47E。
+- 包内核对：Hermes bundle（4,817,492 字节）按 1 字节命中全部 7 个新标识（jumpToBottom、sheetListScroll、questionScroll、formScroll 两处、modelSheetScroll、editSheetScroll、directoryListScroll），确认修复已进包。
+- 未做真机验证：进入定位最新、仅底部跟随、切页保留位置、悬浮按钮、长世界书条目保存、设置页与写作页弹层滚动都要在真机上确认一次。
+
 ## 7. 发布流程
 
 源码推送：
