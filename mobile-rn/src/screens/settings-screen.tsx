@@ -532,6 +532,7 @@ export function SettingsScreen() {
             <FlatList
               data={filteredRemoteModels}
               keyExtractor={(item) => item.id}
+              style={styles.modelSheetScroll}
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={(
                 <Text style={styles.modelFilterEmpty}>
@@ -578,7 +579,7 @@ export function SettingsScreen() {
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.editSheetBody} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.editSheetScroll} contentContainerStyle={styles.editSheetBody} keyboardShouldPersistTaps="handled">
               <Field label="显示名称" value={editProviderName} onChangeText={setEditProviderName} />
               <Field label="Base URL" value={editProviderUrl} onChangeText={setEditProviderUrl} autoCapitalize="none" keyboardType="url" />
               {editingProvider?.type === "openai-compatible" ? (
@@ -619,7 +620,7 @@ export function SettingsScreen() {
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.editSheetBody} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.editSheetScroll} contentContainerStyle={styles.editSheetBody} keyboardShouldPersistTaps="handled">
               <Field label="模型名称" value={editModelName} onChangeText={setEditModelName} />
               <Field label="温度" value={editModelTemperature} onChangeText={setEditModelTemperature} keyboardType="decimal-pad" />
               <Field label="最大输出 Token 数" value={editModelMaxTokens} onChangeText={setEditModelMaxTokens} keyboardType="number-pad" />
@@ -671,6 +672,9 @@ const styles = StyleSheet.create({
   choiceActive: { borderColor: colors.primary, backgroundColor: "#E6F3EF" },
   choiceText: { color: colors.textMuted, fontSize: 13 },
   choiceTextActive: { color: colors.primary, fontWeight: "700" },
+  // 父层只有 maxHeight，ScrollView/FlatList 默认不收缩会把超出部分顶出可视区且滚不动，必须允许它收缩。
+  modelSheetScroll: { flexShrink: 1 },
+  editSheetScroll: { flexShrink: 1 },
   modelSheet: { maxHeight: "78%", paddingBottom: spacing.lg, borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md, backgroundColor: colors.background },
   modelFilterWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   modelFilterEmpty: { padding: spacing.lg, color: colors.textMuted, fontSize: 14, lineHeight: 20 },

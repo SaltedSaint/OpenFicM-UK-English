@@ -208,6 +208,7 @@ export function CharactersScreen() {
               </Pressable>
             </View>
             <KeyboardAwareScrollView
+              style={styles.formScroll}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               bottomOffset={spacing.lg}
@@ -252,6 +253,8 @@ const styles = StyleSheet.create({
   modalBody: { maxHeight: "88%", padding: spacing.lg, borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md, backgroundColor: colors.background },
   modalHeader: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   modalTitle: { color: colors.text, fontSize: 20, fontWeight: "700" },
+  // 父层只有 maxHeight，ScrollView 默认不收缩会把超出部分顶出可视区且滚不动，必须允许它收缩。
+  formScroll: { flexShrink: 1 },
   form: { gap: spacing.lg, paddingVertical: spacing.sm },
   descriptionInput: { minHeight: 180 },
   switchRow: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

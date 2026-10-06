@@ -1,6 +1,6 @@
 # OpenFicM 项目交接记录
 
-最后更新：2026-10-02
+最后更新：2026-10-06
 
 这份文档用于让新的开发窗口快速恢复项目上下文。继续工作前先阅读本文件、根目录 AGENTS.md、README.md 和 mobile-rn/DESIGN.md。
 
@@ -10,12 +10,12 @@ OpenFicM 是 OpenFic 的 React Native Android 独立移动端重构，不是把�
 
 应用不是完全断网产品：作品数据和本地 Agent 运行时在手机上，用户仍可配置任意供应商的模型 API、获取供应商模型列表，并在首次启动时从 GitHub/Hugging Face 获取 Agent、Skill、嵌入和重排资源。API Base URL、Key、模型和供应商均由用户配置。
 
-当前正式版本：0.10.2
+当前正式版本：0.10.3
 
 GitHub 仓库：
 
 - 源码：https://github.com/tioners/OpenFicM
-- 正式 Release：https://github.com/tioners/OpenFicM/releases/tag/v0.10.2
+- 正式 Release：https://github.com/tioners/OpenFicM/releases/tag/v0.10.3
 - 上游 OpenFic：https://github.com/syrizelink/OpenFic
 - Skill/Agent 内容来源：https://github.com/worldwonderer/oh-story-claudecode
 
@@ -24,18 +24,18 @@ GitHub 仓库：
 ## 2. 当前交付状态
 
 - Git 分支：main
-- 最新源码提交：本次 0.10.2 发布提交，以 v0.10.2 标签为准
-- 本轮审查基线：009f27e fix(style): 文风选择器统一并显示来源与内容
-- Release 标签：v0.10.2
+- 最新源码提交：本次 0.10.3 发布提交，以 v0.10.3 标签为准
+- 本轮审查基线：636358a docs: 记录 0.10.2 根因与验证结果
+- Release 标签：v0.10.3
 - Android applicationId：com.openfic.mobile
-- versionCode：20
-- versionName：0.10.2
+- versionCode：21
+- versionName：0.10.3
 - 最低 Android：9.0，minSdk 28
 - ABI：仅 arm64-v8a
-- Release APK：仓库根目录 OpenFicM-Android-0.10.2.apk；APK 和密钥均被 Git 忽略
+- Release APK：仓库根目录 OpenFicM-Android-0.10.3.apk；APK 和密钥均被 Git 忽略
 - 正式签名证书 SHA-256：c5dd7c047dc88fdeee64bd4311cddbe7ebc3ba60ea1485670b7543870dddf863
 
-0.10.2 继续使用 0.7.0 的正式证书，因此可以直接覆盖升级。本版修掉"删参考书后参考文风还在"的根因：`withExclusiveTransactionAsync` 跑在 expo-sqlite 新开的连接上，那条连接没打开 `PRAGMA foreign_keys`，导致独占事务里的级联删除/置空全部失效；依赖级联的删除改为显式删除，启动时加了一段幂等一致性修复清理历史孤儿，详见 docs/releases/v0.10.2.md。近几个版本：0.10.1 文风选择器统一并显示来源与内容（v0.10.1.md）、0.10.0 蒸馏后台化与供应商接口选择（v0.10.0.md）、0.9.0 参考文风改为每本一份持续演进（v0.9.0.md）。
+0.10.3 继续使用 0.7.0 的正式证书，因此可以直接覆盖升级。本版修复 GitHub issue #2 与 #3：maxHeight 弹层里的滚动容器缺 flexShrink，长内容时保存/提交按钮被顶出可视区（世界书、角色、结构化提问、设置页与写作页目录一并修掉）；助手页因整屏 loading 卸载重建消息列表导致滚动归零，现在进入定位到最新消息、仅在底部时跟随、切页保留位置，并新增“回到最新消息”悬浮按钮，详见 docs/releases/v0.10.3.md。0.10.2 及更早：0.10.2 修掉"删参考书后参考文风还在"的根因：`withExclusiveTransactionAsync` 跑在 expo-sqlite 新开的连接上，那条连接没打开 `PRAGMA foreign_keys`，导致独占事务里的级联删除/置空全部失效；依赖级联的删除改为显式删除，启动时加了一段幂等一致性修复清理历史孤儿，详见 docs/releases/v0.10.2.md。近几个版本：0.10.1 文风选择器统一并显示来源与内容（v0.10.1.md）、0.10.0 蒸馏后台化与供应商接口选择（v0.10.0.md）、0.9.0 参考文风改为每本一份持续演进（v0.9.0.md）。
 
 ## 3. 功能清单
 

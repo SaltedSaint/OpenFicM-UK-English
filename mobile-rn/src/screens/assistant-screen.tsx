@@ -12,6 +12,8 @@ import {
   Text,
   TextInput,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
@@ -197,11 +199,17 @@ export function AssistantScreen() {
   const [pendingQuestion, setPendingQuestion] = useState<AgentClarificationRequest | null>(null);
   const [retryRequest, setRetryRequest] = useState<RetryRequest | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const composerRef = useRef<TextInput>(null);
   const loadRequestRef = useRef(0);
   const sendRequestRef = useRef(0);
   const questionResolverRef = useRef<((response: AgentClarificationResponse) => void) | null>(null);
+  // 滚动状态：loadedProjectRef 区分“首次进入作品”和“回到页面/任务完成的静默刷新”；
+  // pinToBottomRef 是“内容布局完成后定位到底部”的一次性标记，由 onContentSizeChange 消费。
+  const loadedProjectRef = useRef<string | null>(null);
+  const atBottomRef = useRef(true);
+  const pinToBottomRef = useRef(true);
   const providerById = useMemo(() => new Map(providers.map((provider) => [provider.id, provider])), [providers]);
 
   const cancelPendingQuestion = useCallback(() => {
@@ -209,6 +217,30 @@ export function AssistantScreen() {
     questionResolverRef.current = null;
     setPendingQuestion(null);
     resolver?.({ answers: [], cancelled: true });
+  }, []);
+
+  // 长对话滚动：只有主动定位（进入、切换会话、发送、点“回到最新消息”）才强制到底部；
+  // 智能体运行中的自动跟随仅在用户已停留在底部时生效，翻阅历史时绝不抢滚动位置。
+  const scrollToBottom = useCallback((animated: boolean) => {
+    pinToBottomRef.current = true;
+    atBottomRef.current = true;
+    setShowJumpToBottom(false);
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
+  }, []);
+
+  const handleListScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    // 距底部 120px 以内视为“在底部”，跟随滚动只在这个范围内生效。
+    const atBottom = contentSize.height - contentOffset.y - layoutMeasurement.height <= 120;
+    atBottomRef.current = atBottom;
+    if (!atBottom) pinToBottomRef.current = false;
+    setShowJumpToBottom(!atBottom);
+  }, []);
+
+  const handleListContentSizeChange = useCallback(() => {
+    if (!pinToBottomRef.current) return;
+    pinToBottomRef.current = false;
+    listRef.current?.scrollToEnd({ animated: false });
   }, []);
 
   const load = useCallback(async () => {
@@ -228,11 +260,22 @@ export function AssistantScreen() {
       setActiveStyleProfileState(null);
       setSelection(null);
       setLiveTrace(null);
+      loadedProjectRef.current = null;
+      pinToBottomRef.current = true;
+      atBottomRef.current = true;
+      setShowJumpToBottom(false);
       cancelPendingQuestion();
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // 同一作品内的再次加载（回到页面、任务完成后刷新）不再进入整屏 loading，
+    // 否则 FlatList 被卸载重建，长对话每次都会被顶回顶部。
+    if (loadedProjectRef.current !== projectId) {
+      setLoading(true);
+      pinToBottomRef.current = true;
+      atBottomRef.current = true;
+      setShowJumpToBottom(false);
+    }
     setError(null);
     try {
       const [
@@ -295,6 +338,11 @@ export function AssistantScreen() {
       setSessions(nextSessions);
       setActiveSession(nextSession);
       setMessages(nextMessages);
+      if (loadedProjectRef.current !== projectId) {
+        // 进入作品时定位到最新消息，而不是停在最早的历史。
+        loadedProjectRef.current = projectId;
+        scrollToBottom(false);
+      }
       const lastFailed = [...nextMessages].reverse().find((message) => message.role === "assistant" && (message.metadata?.taskStatus === "failed" || message.metadata?.agentTrace?.status === "error"));
       setRetryRequest(lastFailed ? retryRequestForMessage(lastFailed, nextMessages, nextSession, nextSelection, activeAgent?.id ?? null) : null);
       setModels(nextModels);
@@ -314,7 +362,7 @@ export function AssistantScreen() {
     } finally {
       if (loadRequestRef.current === requestId) setLoading(false);
     }
-  }, [cancelPendingQuestion, projectId]);
+  }, [cancelPendingQuestion, projectId, scrollToBottom]);
 
   useEffect(() => {
     cancelPendingQuestion();
@@ -362,7 +410,7 @@ export function AssistantScreen() {
       setSelection(nextSelection);
       setError(selectionError);
       setSessionPickerVisible(false);
-      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+      scrollToBottom(false);
     } catch (switchError) {
       setError(switchError instanceof Error ? switchError.message : String(switchError));
     }
@@ -379,6 +427,7 @@ export function AssistantScreen() {
       setMessages([]);
       setRetryRequest(null);
       setSessionPickerVisible(false);
+      scrollToBottom(false);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : String(createError));
     }
@@ -432,6 +481,7 @@ export function AssistantScreen() {
       setActiveSession(replacement);
       setMessages(nextMessages);
       setRetryRequest(null);
+      scrollToBottom(false);
       try {
         setSelection(await resolveSelection(effectiveModelId, models, providers));
         setError(null);
@@ -541,6 +591,7 @@ export function AssistantScreen() {
         }
         if (!isCurrentRequest()) return;
         setMessages(nextHistory);
+        scrollToBottom(false);
         setActiveSession(workingSession);
         setSessions((current) => [workingSession, ...current.filter((session) => session.id !== workingSession.id)]);
       }
@@ -555,7 +606,7 @@ export function AssistantScreen() {
         onTrace: (trace) => {
           latestTrace = trace;
           setLiveTrace(trace);
-          requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+          if (atBottomRef.current) scrollToBottom(false);
         },
       });
       const assistantMessage = await addMessage(sessionId, "assistant", response.content, {
@@ -572,7 +623,7 @@ export function AssistantScreen() {
       setRetryRequest(null);
       setLiveTrace(null);
       refreshData();
-      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+      if (atBottomRef.current) scrollToBottom(false);
     } catch (sendError) {
       const friendlyError = humanizeAgentError(sendError);
       if (isCurrentRequest()) setError(friendlyError.message);
@@ -594,6 +645,7 @@ export function AssistantScreen() {
           );
           if (isCurrentRequest()) {
             setMessages((current) => [...current, failedMessage]);
+            if (atBottomRef.current) scrollToBottom(false);
             setRetryRequest({ sessionId, userMessage, history: nextHistory, sourceMessageId: failedMessage.id, modelId: retryModelId, agentId: retry?.agentId ?? activeAgentId });
             refreshData();
           }
@@ -671,66 +723,76 @@ export function AssistantScreen() {
         <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
       </Pressable>
       <KeyboardAvoidingView style={styles.flex} behavior="height" automaticOffset>
-        <FlatList
-          ref={listRef}
-          style={styles.flex}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={messages.length ? styles.messages : styles.emptyMessages}
-          ListFooterComponent={liveTrace ? (
-            <View style={styles.liveTrace}>
-              <AgentTraceView trace={liveTrace} defaultExpanded />
-            </View>
-          ) : null}
-          ListEmptyComponent={models.length ? (
-            <EmptyState title="告诉助手你想续写、修改或检索什么" />
-          ) : (
-            <EmptyState title="请先配置供应商并添加模型" action={<Button label="打开模型设置" onPress={() => navigation.navigate("Settings")} />} />
-          )}
-          renderItem={({ item }) => (
-            <View style={[styles.message, item.role === "user" ? styles.userMessage : styles.assistantMessage]}>
-              {(() => {
-                const messageRetry = retryRequestForMessage(item, messages, activeSession, selection, activeAgentId);
-                const failed = item.role === "assistant" && (item.metadata?.taskStatus === "failed" || item.metadata?.agentTrace?.status === "error");
-                return (
-                  <>
-              <View style={styles.messageHeader}>
-                <Text style={styles.messageRole}>{item.role === "user" ? "你" : "OpenFicM"}</Text>
-                {item.role === "user" ? (
-                  <Pressable accessibilityLabel="编辑这条消息" disabled={sending} onPress={() => beginEditMessage(item)} style={styles.messageEditButton}>
-                    <Ionicons name="create-outline" size={17} color={colors.primary} />
-                    <Text style={styles.messageEditText}>编辑</Text>
-                  </Pressable>
-                ) : null}
+        <View style={styles.flex}>
+          <FlatList
+            ref={listRef}
+            style={styles.flex}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={messages.length ? styles.messages : styles.emptyMessages}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={handleListContentSizeChange}
+            ListFooterComponent={liveTrace ? (
+              <View style={styles.liveTrace}>
+                <AgentTraceView trace={liveTrace} defaultExpanded />
               </View>
-              {item.metadata?.agentTrace ? (
-                <AgentTraceView
-                  trace={item.metadata.agentTrace}
-                  onRetry={failed && messageRetry ? () => void send(messageRetry) : undefined}
-                  retryDisabled={sending}
-                />
-              ) : failed ? (
-                <View style={styles.failureCard}>
-                  <Text style={styles.failureTitle}>执行失败</Text>
-                  {messageRetry ? (
-                    <Pressable accessibilityRole="button" disabled={sending} onPress={() => void send(messageRetry)} style={[styles.failureRetry, sending && styles.failureRetryDisabled]}>
-                      <Ionicons name="refresh-outline" size={17} color={colors.danger} />
-                      <Text style={styles.failureRetryText}>{sending ? "处理中" : "重试"}</Text>
+            ) : null}
+            ListEmptyComponent={models.length ? (
+              <EmptyState title="告诉助手你想续写、修改或检索什么" />
+            ) : (
+              <EmptyState title="请先配置供应商并添加模型" action={<Button label="打开模型设置" onPress={() => navigation.navigate("Settings")} />} />
+            )}
+            renderItem={({ item }) => (
+              <View style={[styles.message, item.role === "user" ? styles.userMessage : styles.assistantMessage]}>
+                {(() => {
+                  const messageRetry = retryRequestForMessage(item, messages, activeSession, selection, activeAgentId);
+                  const failed = item.role === "assistant" && (item.metadata?.taskStatus === "failed" || item.metadata?.agentTrace?.status === "error");
+                  return (
+                    <>
+                <View style={styles.messageHeader}>
+                  <Text style={styles.messageRole}>{item.role === "user" ? "你" : "OpenFicM"}</Text>
+                  {item.role === "user" ? (
+                    <Pressable accessibilityLabel="编辑这条消息" disabled={sending} onPress={() => beginEditMessage(item)} style={styles.messageEditButton}>
+                      <Ionicons name="create-outline" size={17} color={colors.primary} />
+                      <Text style={styles.messageEditText}>编辑</Text>
                     </Pressable>
                   ) : null}
                 </View>
-              ) : null}
-              <Text selectable style={styles.messageText}>{item.content}</Text>
-              {failed && item.metadata?.errorDetail ? <ErrorDetails detail={item.metadata.errorDetail} /> : null}
-              {item.role === "assistant" && messageRetry ? (
-                <MessageActionBar content={item.content} onRetry={() => void send(messageRetry)} retryDisabled={sending} />
-              ) : null}
-                  </>
-                );
-              })()}
-            </View>
-          )}
-        />
+                {item.metadata?.agentTrace ? (
+                  <AgentTraceView
+                    trace={item.metadata.agentTrace}
+                    onRetry={failed && messageRetry ? () => void send(messageRetry) : undefined}
+                    retryDisabled={sending}
+                  />
+                ) : failed ? (
+                  <View style={styles.failureCard}>
+                    <Text style={styles.failureTitle}>执行失败</Text>
+                    {messageRetry ? (
+                      <Pressable accessibilityRole="button" disabled={sending} onPress={() => void send(messageRetry)} style={[styles.failureRetry, sending && styles.failureRetryDisabled]}>
+                        <Ionicons name="refresh-outline" size={17} color={colors.danger} />
+                        <Text style={styles.failureRetryText}>{sending ? "处理中" : "重试"}</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+                <Text selectable style={styles.messageText}>{item.content}</Text>
+                {failed && item.metadata?.errorDetail ? <ErrorDetails detail={item.metadata.errorDetail} /> : null}
+                {item.role === "assistant" && messageRetry ? (
+                  <MessageActionBar content={item.content} onRetry={() => void send(messageRetry)} retryDisabled={sending} />
+                ) : null}
+                    </>
+                  );
+                })()}
+              </View>
+            )}
+          />
+          {showJumpToBottom ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="回到最新消息" onPress={() => scrollToBottom(true)} style={styles.jumpToBottom}>
+              <Ionicons name="arrow-down" size={22} color={colors.primary} />
+            </Pressable>
+          ) : null}
+        </View>
         {error ? <View style={styles.errorWrap}><ErrorNotice message={error} onRetry={retryRequest ? () => void send(retryRequest) : () => void load()} /></View> : null}
         <View style={styles.composer}>
           {editingMessageId ? (
@@ -786,6 +848,7 @@ export function AssistantScreen() {
             <FlatList
               data={sessions}
               keyExtractor={(item) => item.id}
+              style={styles.sheetListScroll}
               contentContainerStyle={styles.sheetList}
               renderItem={({ item }) => {
                 const sessionModelId = item.modelId ?? defaultModelId;
@@ -824,6 +887,7 @@ export function AssistantScreen() {
             <FlatList
               data={models}
               keyExtractor={(item) => item.id}
+              style={styles.sheetListScroll}
               contentContainerStyle={styles.sheetList}
               ListHeaderComponent={
                 <Pressable onPress={() => void chooseModel(null)} style={[styles.sheetRow, activeSession?.modelId === null && styles.sheetRowActive]}>
@@ -924,6 +988,24 @@ const styles = StyleSheet.create({
   messages: { padding: spacing.lg, gap: spacing.md },
   liveTrace: { marginTop: spacing.md },
   emptyMessages: { flexGrow: 1 },
+  jumpToBottom: {
+    position: "absolute",
+    right: spacing.lg,
+    bottom: spacing.md,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    elevation: 4,
+    shadowColor: "#000000",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
   message: { gap: spacing.md, paddingVertical: spacing.md },
   messageHeader: { minHeight: 28, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   messageEditButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.sm },
@@ -949,6 +1031,8 @@ const styles = StyleSheet.create({
   composerInput: { flex: 1, maxHeight: 130, minHeight: 46, paddingHorizontal: spacing.md, paddingVertical: 11, borderRadius: radius.md, backgroundColor: colors.surfaceMuted, color: colors.text, fontSize: 16 },
   sendButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
   sendDisabled: { opacity: 0.48 },
+  // 父层只有 maxHeight，ScrollView/FlatList 默认不收缩会把超出部分顶出可视区且滚不动，必须允许它收缩。
+  sheetListScroll: { flexShrink: 1 },
   sheet: {
     maxHeight: "80%",
     paddingBottom: spacing.xl,

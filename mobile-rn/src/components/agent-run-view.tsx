@@ -234,6 +234,7 @@ export function AgentQuestionSheet({
             </Pressable>
           </View>
           <KeyboardAwareScrollView
+            style={styles.questionScroll}
             bottomOffset={spacing.xl}
             contentContainerStyle={styles.questions}
             keyboardShouldPersistTaps="handled"
@@ -402,6 +403,8 @@ const styles = StyleSheet.create({
   questionSheetTitle: { color: colors.text, fontSize: 17, fontWeight: "700" },
   questionSheetSubtitle: { marginTop: 2, color: colors.textMuted, fontSize: 12 },
   closeButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  // 父层只有 maxHeight，ScrollView 默认不收缩会把超出部分顶出可视区且滚不动，必须允许它收缩。
+  questionScroll: { flexShrink: 1 },
   questions: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.xl },
   question: { gap: spacing.sm },
   questionIndex: { color: colors.primary, fontSize: 11, fontWeight: "700" },

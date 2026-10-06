@@ -674,6 +674,7 @@ export function WritingScreen() {
               sections={directorySections}
               keyExtractor={(item) => item.id}
               stickySectionHeadersEnabled={false}
+              style={styles.directoryListScroll}
               contentContainerStyle={styles.directoryList}
               renderSectionHeader={({ section }) => (
                 <View style={styles.volumeHeader}>
@@ -904,6 +905,8 @@ const styles = StyleSheet.create({
   },
   sheetHeaderActions: { flexDirection: "row", alignItems: "center" },
   sheetTitle: { color: colors.text, fontSize: 18, fontWeight: "700" },
+  // 父层只有 maxHeight，ScrollView/FlatList 默认不收缩会把超出部分顶出可视区且滚不动，必须允许它收缩。
+  directoryListScroll: { flexShrink: 1 },
   directoryList: { paddingBottom: spacing.lg },
   volumeHeader: {
     minHeight: 50,
