@@ -458,21 +458,30 @@ export async function deleteChapter(id: string): Promise<void> {
 
 export async function searchChapters(projectId: string, query: string): Promise<Chapter[]> {
   const db = await getDatabase();
-  const terms = query.trim().replace(/[^\p{L}\p{N}_]+/gu, " ").split(/\s+/).filter(Boolean);
+  const trimmedQuery = query.trim();
+  const terms = trimmedQuery.replace(/[^\p{L}\p{N}_]+/gu, " ").split(/\s+/).filter(Boolean);
   if (!terms.length) return [];
-  const matchQuery = terms.map((term) => `"${term.replace(/"/g, '""')}"*`).join(" AND ");
-  try {
-    return (await db.getAllAsync<ChapterRow>(`
-      SELECT c.* FROM chapter_fts f JOIN chapters c ON c.id = f.chapter_id
-      WHERE f.project_id = ? AND chapter_fts MATCH ? ORDER BY rank LIMIT 20
-    `, projectId, matchQuery)).map(mapChapter);
-  } catch {
-    const likeQuery = `%${query.trim()}%`;
-    return (await db.getAllAsync<ChapterRow>(`
-      SELECT * FROM chapters WHERE project_id = ? AND (title LIKE ? OR content LIKE ?)
-      ORDER BY updated_at DESC LIMIT 20
-    `, projectId, likeQuery, likeQuery)).map(mapChapter);
+  // unicode61 不分词中文：两个标点之间的整句会被当成一个词，词中子串（如人名）永远查不到，
+  // 所以含中文的查询直接走 LIKE；单部作品的数据量下 LIKE 足够快。
+  const hasCjk = /[㐀-鿿豈-﫿]/.test(trimmedQuery);
+  if (!hasCjk) {
+    const matchQuery = terms.map((term) => `"${term.replace(/"/g, '""')}"*`).join(" AND ");
+    try {
+      const rows = await db.getAllAsync<ChapterRow>(`
+        SELECT c.* FROM chapter_fts f JOIN chapters c ON c.id = f.chapter_id
+        WHERE f.project_id = ? AND chapter_fts MATCH ? ORDER BY rank LIMIT 20
+      `, projectId, matchQuery);
+      if (rows.length) return rows.map(mapChapter);
+      // FTS 没命中时同样回退 LIKE，避免分词差异造成漏检。
+    } catch {
+      // FTS 语法或表异常时直接走 LIKE 兜底。
+    }
   }
+  const likeQuery = `%${trimmedQuery}%`;
+  return (await db.getAllAsync<ChapterRow>(`
+    SELECT * FROM chapters WHERE project_id = ? AND (title LIKE ? OR content LIKE ?)
+    ORDER BY updated_at DESC LIMIT 20
+  `, projectId, likeQuery, likeQuery)).map(mapChapter);
 }
 
 export async function listProviders(): Promise<Provider[]> {

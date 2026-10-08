@@ -19,6 +19,7 @@ import {
   setSetting,
 } from "@/data/repositories";
 import { createId } from "@/lib/id";
+import { exportBackup } from "@/lib/backup";
 import { useAppStore } from "@/store/app-store";
 import {
   DEFAULT_INDEX_SETTINGS,
@@ -146,6 +147,10 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
   const [autoSaveDelay, setAutoSaveDelay] = useState("1000");
   const [editorFontSize, setEditorFontSize] = useState("17");
   const [requestTimeout, setRequestTimeout] = useState("120000");
+  const [maxAttempts, setMaxAttempts] = useState("3");
+  const [maxServerErrorAttempts, setMaxServerErrorAttempts] = useState("2");
+  const [maxRateLimitAttempts, setMaxRateLimitAttempts] = useState("1");
+  const [retryOnTimeout, setRetryOnTimeout] = useState(false);
   const [ohStoryState, setOhStoryState] = useState<OhStoryUpdateState>(EMPTY_OH_STORY_STATE);
   const [ohStoryProgress, setOhStoryProgress] = useState("");
   const [ohStoryBusy, setOhStoryBusy] = useState(false);
@@ -155,6 +160,19 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
   const [appUpdate, setAppUpdate] = useState<AppUpdateInfo | null>(null);
   const [appUpdateBusy, setAppUpdateBusy] = useState(false);
   const [appUpdateError, setAppUpdateError] = useState<string | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+
+  const runBackup = async () => {
+    setBackupBusy(true);
+    setError(null);
+    try {
+      await exportBackup();
+    } catch (backupError) {
+      setError(backupError instanceof Error ? backupError.message : String(backupError));
+    } finally {
+      setBackupBusy(false);
+    }
+  };
 
   const checkForAppUpdate = async () => {
     setAppUpdateBusy(true);
@@ -172,7 +190,7 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
     setLoading(true);
     setError(null);
     try {
-      const [nextIndex, nextRules, nextSkills, nextAgents, nextPermissions, active, history, compress, autoSave, fontSize, timeout, nextModels, nextOhStoryState, nextResourceState] = await Promise.all([
+      const [nextIndex, nextRules, nextSkills, nextAgents, nextPermissions, active, history, compress, autoSave, fontSize, timeout, attempts, serverAttempts, rateLimitAttempts, retryOnTimeoutValue, nextModels, nextOhStoryState, nextResourceState] = await Promise.all([
         getIndexSettings(),
         getAgentRules(),
         getAgentSkills(),
@@ -184,6 +202,10 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
         getSetting("general.autoSaveDelay"),
         getSetting("general.editorFontSize"),
         getSetting("connections.requestTimeout"),
+        getSetting("connections.maxAttempts"),
+        getSetting("connections.maxServerErrorAttempts"),
+        getSetting("connections.maxRateLimitAttempts"),
+        getSetting("connections.retryOnTimeout"),
         listModels(),
         getOhStoryUpdateState(),
         getRuntimeResourceState(),
@@ -205,6 +227,10 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
       setAutoSaveDelay(autoSave ?? "1000");
       setEditorFontSize(fontSize ?? "17");
       setRequestTimeout(timeout ?? "120000");
+      setMaxAttempts(attempts ?? "3");
+      setMaxServerErrorAttempts(serverAttempts ?? "2");
+      setMaxRateLimitAttempts(rateLimitAttempts ?? "1");
+      setRetryOnTimeout(retryOnTimeoutValue === "true");
       setAvailableModels(nextModels);
       setOhStoryState(nextOhStoryState);
       setResourceState(nextResourceState);
@@ -508,11 +534,21 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
           <Field label="自动保存延迟（毫秒）" value={autoSaveDelay} onChangeText={setAutoSaveDelay} onBlur={() => void savePreference("general.autoSaveDelay", autoSaveDelay)} keyboardType="number-pad" />
           <Field label="编辑器字号" value={editorFontSize} onChangeText={setEditorFontSize} onBlur={() => void savePreference("general.editorFontSize", editorFontSize)} keyboardType="number-pad" />
           <SettingRow label="数据位置" value="本机 SQLite · API Key 使用 SecureStore" />
+          <Button label={backupBusy ? "正在导出" : "导出全部数据备份"} variant="secondary" onPress={() => void runBackup()} disabled={backupBusy} loading={backupBusy} />
+          <Text style={styles.fieldHint}>备份包含全部作品、角色、世界书、笔记、文风、设置和参考书，打包成 zip 通过系统分享保存；恢复方式见压缩包里的说明。</Text>
         </View>
       ) : null}
       {category === "connections" ? (
         <View style={styles.section}>
           <Field label="模型请求超时（毫秒）" value={requestTimeout} onChangeText={setRequestTimeout} onBlur={() => void savePreference("connections.requestTimeout", requestTimeout)} keyboardType="number-pad" />
+          <Field label="网络错误最多尝试次数（1-5）" value={maxAttempts} onChangeText={setMaxAttempts} onBlur={() => void savePreference("connections.maxAttempts", maxAttempts)} keyboardType="number-pad" />
+          <Field label="服务器错误最多尝试次数（1-3）" value={maxServerErrorAttempts} onChangeText={setMaxServerErrorAttempts} onBlur={() => void savePreference("connections.maxServerErrorAttempts", maxServerErrorAttempts)} keyboardType="number-pad" />
+          <Field label="限流（429）最多尝试次数（1-3）" value={maxRateLimitAttempts} onChangeText={setMaxRateLimitAttempts} onBlur={() => void savePreference("connections.maxRateLimitAttempts", maxRateLimitAttempts)} keyboardType="number-pad" />
+          <Text style={styles.fieldHint}>尝试次数包含第一次请求；限流默认不重试，避免放大中转站的限流。</Text>
+          <ToggleRow label="超时后自动重发（可能重复计费）" value={retryOnTimeout} onChange={(value) => {
+            setRetryOnTimeout(value);
+            void savePreference("connections.retryOnTimeout", String(value));
+          }} />
           <SettingRow label="供应商和模型" value="在“模型”分类中管理" />
           <SettingRow label="网络边界" value="只有调用用户配置的模型 API 时联网；作品数据保存在本机" />
         </View>
@@ -732,6 +768,7 @@ const styles = StyleSheet.create({
   subsectionTitle: { color: colors.text, fontSize: 17, fontWeight: "700" },
   subsectionDivider: { height: StyleSheet.hairlineWidth, marginVertical: spacing.sm, backgroundColor: colors.border },
   sectionHint: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
+  fieldHint: { color: colors.textMuted, fontSize: 12, lineHeight: 18, marginTop: -spacing.sm },
   settingRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   settingLabel: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "600" },
   settingValue: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19, textAlign: "right" },

@@ -46,6 +46,7 @@ const MAX_DELEGATION_DEPTH = 1;
 // 主智能体与全部子智能体共享同一个请求预算，避免一条消息把中转站的 RPM 打满。
 const MAX_TOTAL_MODEL_REQUESTS = 24;
 const MAX_TRACE_STRING_LENGTH = 700;
+export const AGENT_CANCELLED_MESSAGE = "已取消本次任务";
 // 提示词里只列笔记标题，正文交给 read_note 按需加载，避免每次请求都背上全部笔记内容。
 const MAX_PROMPT_NOTE_TITLES = 40;
 const CHARACTER_CONSISTENCY_TOOL_NAMES = new Set([
@@ -105,6 +106,7 @@ type LoopInput = {
   userRequest: string;
   depth: number;
   budget: RequestBudget;
+  signal?: AbortSignal;
 };
 
 export interface AgentRunResult {
@@ -124,6 +126,10 @@ export class AgentRunError extends Error {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error(AGENT_CANCELLED_MESSAGE);
 }
 
 function cloneTrace(trace: AgentRunTrace): AgentRunTrace {
@@ -537,6 +543,9 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
     consistencyReason: input.consistencyReason,
     userRequest: input.userRequest,
   });
+  // 长会话截取后第一条可能是 assistant；Anthropic 等协议要求首条非系统消息必须是 user，去掉前导 assistant。
+  const trimmedHistory = input.history.slice(-input.catalog.historyLimit);
+  while (trimmedHistory.length && trimmedHistory[0].role !== "user") trimmedHistory.shift();
   const messages: AgentMessage[] = [
     {
       role: "system",
@@ -544,7 +553,7 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
         ? prompt.split("\n").map((line) => line.trim()).filter(Boolean).join("\n")
         : prompt,
     },
-    ...input.history.slice(-input.catalog.historyLimit),
+    ...trimmedHistory,
   ];
   const tools = toolsForAgent(input.agent);
   const allowedToolNames = new Set(tools.map((tool) => tool.name));
@@ -585,11 +594,12 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
   }
 
   for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration += 1) {
+    throwIfAborted(input.signal);
     if (input.budget.remaining <= 0) {
       throw new Error("本次任务的模型请求次数已达上限，请拆分需求后重试");
     }
     input.budget.remaining -= 1;
-    const turn = await callModel(input.selection, messages, tools);
+    const turn = await callModel(input.selection, messages, tools, { signal: input.signal });
     messages.push({ role: "assistant", content: turn.content, toolCalls: turn.toolCalls });
 
     if (turn.toolCalls.length === 0) {
@@ -611,6 +621,7 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
     }
 
     for (const call of turn.toolCalls) {
+      throwIfAborted(input.signal);
       const kind = call.name === "activate_skill"
         ? "skill"
         : call.name === "delegate_agent"
@@ -773,7 +784,10 @@ export async function runAgent(input: {
   approveTool?: ToolApproval;
   askUser?: AskUser;
   onTrace?: TraceListener;
+  /** 外部取消信号：停止按钮或切换作品时中止本次运行。 */
+  signal?: AbortSignal;
 }): Promise<AgentRunResult> {
+  throwIfAborted(input.signal);
   const consistencyKey = `agent.pendingConsistency.${input.project.id}`;
   const [rules, skills, agents, permissions, activeAgentId, historyLimitValue, compressValue, pendingConsistency, styleSelection, availableStyleProfiles, notes] = await Promise.all([
     getAgentRules(),
@@ -829,7 +843,9 @@ export async function runAgent(input: {
     const result = await runAgentLoop({
       project: input.project,
       selection: input.selection,
-      history: input.history.map((message) => ({ role: message.role, content: message.content })),
+      history: input.history
+        .filter((message) => !(message.role === "assistant" && message.metadata?.taskStatus === "failed"))
+        .map((message) => ({ role: message.role, content: message.content })),
       catalog,
       agent,
       consistencyReason,
@@ -841,6 +857,7 @@ export async function runAgent(input: {
       userRequest,
       depth: 0,
       budget: { remaining: MAX_TOTAL_MODEL_REQUESTS },
+      signal: input.signal,
     });
     if (result.consistencyRequired) {
       await setSetting(consistencyKey, "");

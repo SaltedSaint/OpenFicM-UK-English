@@ -204,6 +204,7 @@ export function AssistantScreen() {
   const composerRef = useRef<TextInput>(null);
   const loadRequestRef = useRef(0);
   const sendRequestRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const questionResolverRef = useRef<((response: AgentClarificationResponse) => void) | null>(null);
   // 滚动状态：loadedProjectRef 区分“首次进入作品”和“回到页面/任务完成的静默刷新”；
   // pinToBottomRef 是“内容布局完成后定位到底部”的一次性标记，由 onContentSizeChange 消费。
@@ -365,11 +366,16 @@ export function AssistantScreen() {
   }, [cancelPendingQuestion, projectId, scrollToBottom]);
 
   useEffect(() => {
+    // 切换作品：中止还在运行的智能体，避免它继续弹旧作品的审批框、消耗预算或写旧作品。
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     cancelPendingQuestion();
     setSending(false);
     setLiveTrace(null);
     return () => {
       sendRequestRef.current += 1;
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
       cancelPendingQuestion();
     };
   }, [cancelPendingQuestion, projectId]);
@@ -528,6 +534,12 @@ export function AssistantScreen() {
     resolver?.(response);
   };
 
+  const stopSending = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    cancelPendingQuestion();
+  }, [cancelPendingQuestion]);
+
   const send = async (retry: RetryRequest | null = null) => {
     const content = retry?.userMessage.content ?? input.trim();
     const editTarget = !retry && editingMessageId
@@ -543,6 +555,8 @@ export function AssistantScreen() {
     const requestId = sendRequestRef.current + 1;
     sendRequestRef.current = requestId;
     const isCurrentRequest = () => sendRequestRef.current === requestId;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setSending(true);
     setError(null);
     setInput("");
@@ -603,6 +617,7 @@ export function AssistantScreen() {
         agentId: retry?.agentId ?? activeAgentId,
         approveTool: requestToolApproval,
         askUser,
+        signal: controller.signal,
         onTrace: (trace) => {
           latestTrace = trace;
           setLiveTrace(trace);
@@ -658,6 +673,7 @@ export function AssistantScreen() {
         setInput(content);
       }
     } finally {
+      if (abortControllerRef.current === controller) abortControllerRef.current = null;
       if (isCurrentRequest()) setSending(false);
     }
   };
@@ -819,12 +835,19 @@ export function AssistantScreen() {
               maxLength={12000}
             />
             <Pressable
-              accessibilityLabel={editingMessageId ? "重发编辑后的消息" : "发送"}
-              disabled={!selection || !input.trim() || sending}
-              onPress={() => void send(retryRequest && input.trim() === retryRequest.userMessage.content ? retryRequest : null)}
-              style={({ pressed }) => [styles.sendButton, (pressed || !selection || !input.trim()) && styles.sendDisabled]}
+              accessibilityLabel={sending ? "停止生成" : editingMessageId ? "重发编辑后的消息" : "发送"}
+              disabled={sending ? false : !selection || !input.trim()}
+              onPress={() => {
+                if (sending) stopSending();
+                else void send(retryRequest && input.trim() === retryRequest.userMessage.content ? retryRequest : null);
+              }}
+              style={({ pressed }) => [
+                styles.sendButton,
+                sending && styles.stopButton,
+                (pressed || (!sending && (!selection || !input.trim()))) && styles.sendDisabled,
+              ]}
             >
-              {sending ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="arrow-up" size={22} color="#FFFFFF" />}
+              {sending ? <Ionicons name="stop" size={20} color="#FFFFFF" /> : <Ionicons name="arrow-up" size={22} color="#FFFFFF" />}
             </Pressable>
           </View>
         </View>
@@ -1030,6 +1053,7 @@ const styles = StyleSheet.create({
   editingText: { color: colors.primary, fontSize: 13, fontWeight: "600" },
   composerInput: { flex: 1, maxHeight: 130, minHeight: 46, paddingHorizontal: spacing.md, paddingVertical: 11, borderRadius: radius.md, backgroundColor: colors.surfaceMuted, color: colors.text, fontSize: 16 },
   sendButton: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
+  stopButton: { backgroundColor: colors.danger },
   sendDisabled: { opacity: 0.48 },
   // 父层只有 maxHeight，ScrollView/FlatList 默认不收缩会把超出部分顶出可视区且滚不动，必须允许它收缩。
   sheetListScroll: { flexShrink: 1 },

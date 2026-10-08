@@ -405,54 +405,65 @@ async function verifyModel(kind: LocalModelKind, onProgress?: (bytesRead: number
   return { ...base, status: "ready", detail: "完整性已验证" };
 }
 
+function hfMirrorUrl(url: string): string {
+  return url.replace("https://huggingface.co/", "https://hf-mirror.com/");
+}
+
 async function downloadModel(kind: LocalModelKind, onProgress?: (progress: ResourceInstallProgress) => void): Promise<void> {
   const info = LOCAL_MODEL_INFO[kind];
   const directory = modelDirectory();
   directory.create({ intermediates: true, idempotent: true });
   const target = getLocalModelFile(kind);
   const temporary = new File(directory, `${info.fileName}.download`);
-  if (temporary.exists) temporary.delete();
-  const task = File.createDownloadTask(info.url, temporary, {
-    headers: { Accept: "application/octet-stream", "User-Agent": "OpenFicM-Android" },
-    onProgress: ({ bytesWritten, totalBytes }) => onProgress?.({
-      stage: kind,
-      label: `下载 ${info.name}`,
-      completed: 0,
-      total: 1,
-      bytesWritten,
-      totalBytes: totalBytes > 0 ? totalBytes : info.bytes,
-    }),
-  });
-  try {
-    const downloaded = await task.downloadAsync();
-    if (!downloaded) throw new Error(`${info.name} 下载被暂停`);
-    if (downloaded.size !== info.bytes) throw new Error(`${info.name} 下载不完整：${downloaded.size}/${info.bytes}`);
-    onProgress?.({ stage: kind, label: `校验 ${info.name}`, completed: 0, total: 1, bytesWritten: 0, totalBytes: info.bytes });
-    const sha256 = await sha256File(downloaded, (bytesRead, totalBytes) => onProgress?.({
-      stage: kind,
-      label: `校验 ${info.name}`,
-      completed: 0,
-      total: 1,
-      bytesWritten: bytesRead,
-      totalBytes,
-    }));
-    if (sha256 !== info.sha256) throw new Error(`${info.name} SHA-256 校验失败`);
-    if (target.exists) target.delete();
-    await downloaded.move(target);
-    await setSetting(verificationKey(kind), JSON.stringify({
-      fileName: info.fileName,
-      bytes: info.bytes,
-      sha256,
-      lastModified: target.lastModified,
-      verifiedAt: new Date().toISOString(),
-    }));
-    onProgress?.({ stage: kind, label: `${info.name} 已就绪`, completed: 1, total: 1, bytesWritten: info.bytes, totalBytes: info.bytes });
-  } catch (error) {
+  // Hugging Face 直连失败时自动换 hf-mirror.com 镜像重试一次；两者都是同一文件，SHA-256 校验兜底。
+  const sources = [info.url, hfMirrorUrl(info.url)];
+  let lastError: unknown;
+  for (const url of sources) {
     if (temporary.exists) temporary.delete();
-    throw error;
-  } finally {
-    task.release();
+    const task = File.createDownloadTask(url, temporary, {
+      headers: { Accept: "application/octet-stream", "User-Agent": "OpenFicM-Android" },
+      onProgress: ({ bytesWritten, totalBytes }) => onProgress?.({
+        stage: kind,
+        label: `下载 ${info.name}${url === info.url ? "" : "（镜像）"}`,
+        completed: 0,
+        total: 1,
+        bytesWritten,
+        totalBytes: totalBytes > 0 ? totalBytes : info.bytes,
+      }),
+    });
+    try {
+      const downloaded = await task.downloadAsync();
+      if (!downloaded) throw new Error(`${info.name} 下载被暂停`);
+      if (downloaded.size !== info.bytes) throw new Error(`${info.name} 下载不完整：${downloaded.size}/${info.bytes}`);
+      onProgress?.({ stage: kind, label: `校验 ${info.name}`, completed: 0, total: 1, bytesWritten: 0, totalBytes: info.bytes });
+      const sha256 = await sha256File(downloaded, (bytesRead, totalBytes) => onProgress?.({
+        stage: kind,
+        label: `校验 ${info.name}`,
+        completed: 0,
+        total: 1,
+        bytesWritten: bytesRead,
+        totalBytes,
+      }));
+      if (sha256 !== info.sha256) throw new Error(`${info.name} SHA-256 校验失败`);
+      if (target.exists) target.delete();
+      await downloaded.move(target);
+      await setSetting(verificationKey(kind), JSON.stringify({
+        fileName: info.fileName,
+        bytes: info.bytes,
+        sha256,
+        lastModified: target.lastModified,
+        verifiedAt: new Date().toISOString(),
+      }));
+      onProgress?.({ stage: kind, label: `${info.name} 已就绪`, completed: 1, total: 1, bytesWritten: info.bytes, totalBytes: info.bytes });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (temporary.exists) temporary.delete();
+    } finally {
+      task.release();
+    }
   }
+  throw lastError instanceof Error ? lastError : new Error(`${info.name} 下载失败`);
 }
 
 export async function getRuntimeResourceState(): Promise<RuntimeResourceState> {

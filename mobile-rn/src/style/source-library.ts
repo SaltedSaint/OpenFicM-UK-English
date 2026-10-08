@@ -183,7 +183,7 @@ function extractMarkupText(value: string): string {
   return normalizeText(fallbackMarkupText(value));
 }
 
-function extractEpub(bytes: Uint8Array): { title: string | null; text: string } {
+function extractEpub(bytes: Uint8Array): { title: string | null; text: string; skippedSections: number } {
   let totalTextBytes = 0;
   const entries = unzipSync(bytes, {
     filter: (entry) => {
@@ -224,11 +224,19 @@ function extractEpub(bytes: Uint8Array): { title: string | null; text: string } 
   );
   const spineItems = asArray(packageRoot.spine?.itemref);
   const sections: string[] = [];
+  let skippedSections = 0;
   for (const itemref of spineItems) {
     const item = itemref.idref ? manifest.get(itemref.idref) : null;
-    if (!item?.href) continue;
+    if (!item?.href) {
+      // spine 引用了清单里不存在的条目：跳过但计数，导入完成后要告知用户书不完整。
+      skippedSections += 1;
+      continue;
+    }
     const entry = findArchiveEntry(entries, archivePath(basePath, item.href));
-    if (!entry) continue;
+    if (!entry) {
+      skippedSections += 1;
+      continue;
+    }
     const section = extractMarkupText(decodeText(entry));
     if (section) sections.push(section);
     if (sections.reduce((total, value) => total + value.length, 0) > MAX_EXTRACTED_CHARACTERS) {
@@ -238,7 +246,7 @@ function extractEpub(bytes: Uint8Array): { title: string | null; text: string } 
   const text = normalizeText(sections.join("\n\n"));
   if (!text) throw new Error("EPUB 书脊中没有可读取的正文");
   const titleValue = asArray(packageRoot.metadata?.title)[0];
-  return { title: typeof titleValue === "string" ? normalizeText(titleValue) : null, text };
+  return { title: typeof titleValue === "string" ? normalizeText(titleValue) : null, text, skippedSections };
 }
 
 function sourceTitle(fileName: string): string {
@@ -263,9 +271,12 @@ export async function importStyleSource(): Promise<StyleSource | null> {
   const bytes = await inputFile.bytes();
   const extracted = format === "epub"
     ? extractEpub(bytes)
-    : { title: null, text: normalizeText(decodeText(bytes)) };
+    : { title: null, text: normalizeText(decodeText(bytes)), skippedSections: 0 };
   if (!extracted.text) throw new Error("文件中没有可读取的正文");
   if (extracted.text.length > MAX_EXTRACTED_CHARACTERS) throw new Error("正文超过 800 万字符限制");
+  if (extracted.skippedSections > 0) {
+    throw new Error(`EPUB 有 ${extracted.skippedSections} 个章节无法解析（清单与书脊不一致），为避免得到缺章的参考书，已取消导入`);
+  }
   const id = createId();
   const originalFile = new File(libraryDirectory(), `${id}.${extensionOf(asset.name)}`);
   const normalizedFile = contentFile(id);

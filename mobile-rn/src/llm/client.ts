@@ -8,10 +8,55 @@ import { buildResponsesRequestBody, parseResponsesTurn } from "./responses-api";
 const CANCELLED_MESSAGE = "已取消本次请求";
 
 const REQUEST_TIMEOUT_MS = 120_000;
-const MAX_REQUEST_ATTEMPTS = 3;
+// 以下重试默认值会被"连接"设置里的可选项覆盖（issue #4）。
+const DEFAULT_MAX_REQUEST_ATTEMPTS = 3;
 // 服务端过载类错误只重试一次，避免中转站限流时把请求量再翻倍。
-const MAX_SERVER_ERROR_ATTEMPTS = 2;
+const DEFAULT_MAX_SERVER_ERROR_ATTEMPTS = 2;
+const DEFAULT_MAX_RATE_LIMIT_ATTEMPTS = 1;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+
+export interface ConnectionRetrySettings {
+  requestTimeoutMs: number;
+  /** 网络错误与超时最多尝试几次（含第一次）。0/1 表示不重试。 */
+  maxRequestAttempts: number;
+  /** 5xx 等服务器错误最多尝试几次（含第一次）。 */
+  maxServerErrorAttempts: number;
+  /** 429 限流最多尝试几次（含第一次）。默认 1，即限流直接抛错，避免放大限流。 */
+  maxRateLimitAttempts: number;
+  /** 超时时是否自动重发。默认 false：超时后服务端多半仍在生成，自动重发会重复计费。 */
+  retryOnTimeout: boolean;
+}
+
+function boundedSetting(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : fallback;
+}
+
+let retrySettingsCache: ConnectionRetrySettings | null = null;
+let retrySettingsLoadedAt = 0;
+const RETRY_SETTINGS_CACHE_MS = 30_000;
+
+export async function getConnectionRetrySettings(): Promise<ConnectionRetrySettings> {
+  if (retrySettingsCache && Date.now() - retrySettingsLoadedAt < RETRY_SETTINGS_CACHE_MS) {
+    return retrySettingsCache;
+  }
+  const [timeoutValue, attemptsValue, serverAttemptsValue, rateLimitAttemptsValue, retryOnTimeoutValue] = await Promise.all([
+    getSetting("connections.requestTimeout"),
+    getSetting("connections.maxAttempts"),
+    getSetting("connections.maxServerErrorAttempts"),
+    getSetting("connections.maxRateLimitAttempts"),
+    getSetting("connections.retryOnTimeout"),
+  ]);
+  retrySettingsCache = {
+    requestTimeoutMs: boundedSetting(timeoutValue, REQUEST_TIMEOUT_MS, 10_000, 300_000),
+    maxRequestAttempts: boundedSetting(attemptsValue, DEFAULT_MAX_REQUEST_ATTEMPTS, 1, 5),
+    maxServerErrorAttempts: boundedSetting(serverAttemptsValue, DEFAULT_MAX_SERVER_ERROR_ATTEMPTS, 1, 3),
+    maxRateLimitAttempts: boundedSetting(rateLimitAttemptsValue, DEFAULT_MAX_RATE_LIMIT_ATTEMPTS, 1, 3),
+    retryOnTimeout: retryOnTimeoutValue === "true",
+  };
+  retrySettingsLoadedAt = Date.now();
+  return retrySettingsCache;
+}
 
 function isRecord(value: unknown): value is Record<string, any> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -70,17 +115,29 @@ function retryDelay(response: Response, attempt: number): number {
   return Math.min(8_000, 1_500 * 2 ** attempt);
 }
 
-function sleep(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+function sleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error(CANCELLED_MESSAGE));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new Error(CANCELLED_MESSAGE));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 async function requestJson(url: string, init: RequestInit, signal?: AbortSignal): Promise<Record<string, any>> {
-  const configuredTimeout = Number(await getSetting("connections.requestTimeout"));
-  const requestTimeout = Number.isInteger(configuredTimeout) && configuredTimeout >= 10_000 && configuredTimeout <= 300_000
-    ? configuredTimeout
-    : REQUEST_TIMEOUT_MS;
+  const settings = await getConnectionRetrySettings();
+  const requestTimeout = settings.requestTimeoutMs;
   let lastError: unknown;
-  for (let attempt = 0; attempt < MAX_REQUEST_ATTEMPTS; attempt += 1) {
+  for (let attempt = 0; attempt < settings.maxRequestAttempts; attempt += 1) {
     if (signal?.aborted) throw new Error(CANCELLED_MESSAGE);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), requestTimeout);
@@ -110,10 +167,10 @@ async function requestJson(url: string, init: RequestInit, signal?: AbortSignal)
       const detail = errorDetail(data, text, response.statusText);
       const requestError = new Error(`HTTP ${response.status}: ${detail}`);
       lastError = requestError;
-      // Surface rate limiting immediately so one failed agent turn cannot amplify it.
-      const maxAttempts = response.status === 429 ? 1 : MAX_SERVER_ERROR_ATTEMPTS;
+      // 默认限流直接抛错，避免一个失败的智能体轮次放大限流；可在设置里放宽。
+      const maxAttempts = response.status === 429 ? settings.maxRateLimitAttempts : settings.maxServerErrorAttempts;
       if (!RETRYABLE_STATUS_CODES.has(response.status) || attempt + 1 >= maxAttempts) throw requestError;
-      await sleep(retryDelay(response, attempt));
+      await sleep(retryDelay(response, attempt), signal);
     } catch (error) {
       // 用户主动取消不是故障：不要重试，也不要报成超时或网络错误。
       if (signal?.aborted) throw new Error(CANCELLED_MESSAGE);
@@ -125,10 +182,14 @@ async function requestJson(url: string, init: RequestInit, signal?: AbortSignal)
       } else {
         lastError = error;
       }
-      if (attempt + 1 >= MAX_REQUEST_ATTEMPTS || !(error instanceof TypeError || (isRecord(error) && error.name === "AbortError"))) {
+      if (attempt + 1 >= settings.maxRequestAttempts || !(error instanceof TypeError || (isRecord(error) && error.name === "AbortError"))) {
         throw lastError;
       }
-      await sleep(Math.min(4_000, 1_000 * 2 ** attempt));
+      // 超时时默认不重发：服务端多半还在生成，重发会重复计费；可在"连接"设置里开启。
+      if (isRecord(error) && error.name === "AbortError" && !settings.retryOnTimeout) {
+        throw lastError;
+      }
+      await sleep(Math.min(4_000, 1_000 * 2 ** attempt), signal);
     } finally {
       clearTimeout(timeout);
       signal?.removeEventListener("abort", abortFromCaller);

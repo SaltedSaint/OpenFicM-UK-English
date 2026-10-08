@@ -618,6 +618,7 @@ export async function executeAgentTool(
     const hasName = typeof args.name === "string";
     const hasDescription = typeof args.description === "string";
     if (!hasName && !hasDescription) throw new Error("至少需要提供 name 或 description");
+    if (hasDescription && !(args.description as string).trim()) throw new Error("角色设定不能为空");
     const nextName = hasName ? requiredString(args, "name") : character.name;
     if (nextName !== character.name) {
       const existing = await listCharacters(projectId);
@@ -724,6 +725,7 @@ export async function executeAgentTool(
     const hasTitle = typeof args.title === "string";
     const hasContent = typeof args.content === "string";
     if (!hasTitle && !hasContent) throw new Error("至少需要提供 title 或 content");
+    if (hasContent && !(args.content as string).trim()) throw new Error("世界书条目内容不能为空");
     const nextTitle = hasTitle ? requiredString(args, "title") : entry.name;
     if (nextTitle !== entry.name) {
       const existing = await listWorldInfoEntries(worldInfo.id);
@@ -754,11 +756,13 @@ export async function executeAgentTool(
       : volumes[0];
     if (requestedVolumeId && !volume) throw new Error("未找到指定卷");
     if (!volume) throw new Error("项目没有可用卷");
+    const content = requiredString(args, "content");
+    if (!content.trim()) throw new Error("章节正文不能为空");
     const chapter = await createChapter(
       projectId,
       volume.id,
       requiredString(args, "title"),
-      requiredString(args, "content"),
+      content,
     );
     const style = await getActiveStyleProfile(projectId);
     await createChapterDraftSnapshot({
@@ -778,11 +782,24 @@ export async function executeAgentTool(
   if (name === "edit_chapter") {
     const chapter = await getChapter(requiredString(args, "chapter_id"));
     if (!chapter || chapter.projectId !== projectId) throw new Error("未找到章节");
+    const hasContent = typeof args.content === "string";
+    if (hasContent && !(args.content as string).trim()) {
+      throw new Error("章节正文不能为空；如需删除整章请先与用户确认");
+    }
     const title = typeof args.title === "string" ? args.title : chapter.title;
-    const content = typeof args.content === "string" ? args.content : chapter.content;
-    await saveChapter(chapter.id, title, content);
+    const content = hasContent ? args.content as string : chapter.content;
     const style = await getActiveStyleProfile(projectId);
-    if (typeof args.content === "string" && content.trim() && content !== chapter.content) {
+    // 覆盖正文前先把旧内容存一份快照，模型误清空或写坏时能在草稿里找回上一版。
+    if (hasContent && content !== chapter.content && chapter.content.trim()) {
+      await createChapterDraftSnapshot({
+        projectId,
+        chapterId: chapter.id,
+        styleProfileId: style?.id ?? null,
+        aiDraft: chapter.content,
+      });
+    }
+    await saveChapter(chapter.id, title, content);
+    if (hasContent && content.trim() && content !== chapter.content) {
       await createChapterDraftSnapshot({
         projectId,
         chapterId: chapter.id,

@@ -8,6 +8,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 import { Button, EmptyState, ErrorNotice, Field, Header, Screen } from "@/components/ui";
 import { createProject, deleteProject, listProjects } from "@/data/repositories";
+import { exportBackup } from "@/lib/backup";
 import type { RootStackParamList, RootTabParamList } from "@/navigation/types";
 import { useAppStore } from "@/store/app-store";
 import { colors, radius, spacing } from "@/theme";
@@ -65,10 +66,16 @@ export function ProjectsScreen() {
   };
 
   const confirmDelete = (project: Project) => {
-    Alert.alert("删除作品", `确定删除《${project.title}》及全部本地数据？`, [
+    Alert.alert("删除作品", `确定删除《${project.title}》及全部本地数据？此操作不可恢复。`, [
       { text: "取消", style: "cancel" },
       {
-        text: "删除",
+        text: "先备份再删除",
+        onPress: () => {
+          void exportBackup().catch((backupError) => setError(backupError instanceof Error ? backupError.message : String(backupError)));
+        },
+      },
+      {
+        text: "直接删除",
         style: "destructive",
         onPress: () => {
           void deleteProject(project.id)

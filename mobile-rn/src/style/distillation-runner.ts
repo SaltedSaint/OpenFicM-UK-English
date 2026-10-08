@@ -25,6 +25,17 @@ export async function startStyleDistillation(input: {
   sourceTitle: string;
   restart?: boolean;
 }): Promise<StartDistillationResult> {
+  // 先用 controller 做同步互斥：快速点两下时第二次直接拒绝，
+  // 不能在 await 之后才检查 store.task，否则两个任务会并发且先启动的那个无法取消。
+  if (controller) {
+    const current = useStyleDistillationStore.getState().task;
+    return {
+      started: false,
+      message: current
+        ? `正在蒸馏《${current.sourceTitle}》，等它完成或取消后再开始新的任务`
+        : "另一个蒸馏任务正在启动，请稍候",
+    };
+  }
   const store = useStyleDistillationStore.getState();
   if (store.task) {
     return {
@@ -32,14 +43,16 @@ export async function startStyleDistillation(input: {
       message: `正在蒸馏《${store.task.sourceTitle}》，等它完成或取消后再开始新的任务`,
     };
   }
+  controller = new AbortController();
   let selection: ModelSelection;
   try {
     selection = await resolveModelSelection();
   } catch (error) {
+    controller = null;
     return { started: false, message: error instanceof Error ? error.message : String(error) };
   }
   const runId = createId();
-  controller = new AbortController();
+  const signal = controller.signal;
   store.startTask({
     runId,
     sourceId: input.sourceId,
@@ -56,7 +69,7 @@ export async function startStyleDistillation(input: {
     sourceTitle: input.sourceTitle,
     restart: input.restart,
     selection,
-    signal: controller.signal,
+    signal,
   });
   return { started: true };
 }
