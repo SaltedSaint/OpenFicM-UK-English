@@ -46,9 +46,12 @@ const MAX_DELEGATION_DEPTH = 1;
 // 主智能体与全部子智能体共享同一个请求预算，避免一条消息把中转站的 RPM 打满。
 const MAX_TOTAL_MODEL_REQUESTS = 24;
 const MAX_TRACE_STRING_LENGTH = 700;
-export const AGENT_CANCELLED_MESSAGE = "已取消本次任务";
+export const AGENT_CANCELLED_MESSAGE = "This task was cancelled";
 // 提示词里只列笔记标题，正文交给 read_note 按需加载，避免每次请求都背上全部笔记内容。
 const MAX_PROMPT_NOTE_TITLES = 40;
+// English output contract: remote skill/reference material is mostly Chinese, so this declares a
+// priority higher than any of it and is repeated at the top and bottom of the system prompt.
+const ENGLISH_OUTPUT_CONTRACT = "Language contract (highest priority): reply and write all prose in English (UK). Any instructions, skill manuals, reference samples or source text in another language are methodology or evidence only — never mirror their language; translate rather than repeat them verbatim.";
 const CHARACTER_CONSISTENCY_TOOL_NAMES = new Set([
   "list_characters",
   "read_character",
@@ -215,16 +218,16 @@ function compactTraceValue(value: unknown, depth = 0): unknown {
   if (typeof value === "string") return truncate(value);
   if (typeof value === "number" || typeof value === "boolean" || value === null) return value;
   if (value === undefined) return undefined;
-  if (depth >= 3) return Array.isArray(value) ? `[${value.length} 项]` : "[对象]";
+  if (depth >= 3) return Array.isArray(value) ? `[${value.length} items]` : "[object]";
   if (Array.isArray(value)) {
     const items = value.slice(0, 8).map((item) => compactTraceValue(item, depth + 1));
-    if (value.length > items.length) items.push(`…另有 ${value.length - items.length} 项`);
+    if (value.length > items.length) items.push(`…${value.length - items.length} more items`);
     return items;
   }
   if (isRecord(value)) {
     const entries = Object.entries(value).slice(0, 12);
     const output = Object.fromEntries(entries.map(([key, item]) => [key, compactTraceValue(item, depth + 1)]));
-    if (Object.keys(value).length > entries.length) output["…"] = `另有 ${Object.keys(value).length - entries.length} 项`;
+    if (Object.keys(value).length > entries.length) output["…"] = `${Object.keys(value).length - entries.length} more items`;
     return output;
   }
   return String(value);
@@ -243,27 +246,27 @@ function toolDisplayName(name: string): string {
 
 function toolResultDetail(name: string, result: Record<string, unknown>): string {
   const count = (key: string) => Array.isArray(result[key]) ? result[key].length : 0;
-  if (name === "list_chapters") return `已读取 ${count("chapters")} 个章节`;
-  if (name === "list_characters") return `已读取 ${count("characters")} 个角色`;
-  if (name === "list_world_entries") return `已读取 ${count("entries")} 个世界书条目`;
-  if (name === "list_notes") return `已读取 ${count("notes")} 条笔记`;
-  if (name === "read_note") return `已读取笔记：${isRecord(result.note) ? String(result.note.title ?? "") : ""}`.trim();
-  if (name === "search_chapters" || name === "search_knowledge") return `找到 ${count("results")} 条相关内容`;
-  if (name === "read_chapter") return `已读取章节：${isRecord(result.chapter) ? String(result.chapter.title ?? "") : ""}`.trim();
-  if (name === "read_character") return `已读取角色：${isRecord(result.character) ? String(result.character.name ?? "") : ""}`.trim();
-  if (name === "read_world_entry") return `已读取世界书：${isRecord(result.entry) ? String(result.entry.name ?? "") : ""}`.trim();
-  if (name === "read_author_style_guide") return result.exists === true ? "已读取作者文风指南" : "当前作品尚无作者文风指南";
-  if (name === "list_style_sources") return `已读取 ${count("sources")} 本参考书`;
-  if (name === "list_style_profiles") return `已读取 ${count("profiles")} 份文风`;
-  if (name === "read_style_source_sample") return `已读取参考书样本：${isRecord(result.source) ? String(result.source.title ?? "") : ""}`.trim();
-  if (name === "read_style_profile") return `已读取文风：${isRecord(result.profile) ? String(result.profile.name ?? "") : ""}`.trim();
-  if (name === "select_style_profile") return `已切换创作文风：${String(result.active_profile_name ?? "")}`;
-  if (name === "save_reference_style_profile") return `已保存参考文风：${String(result.name ?? "")}`;
-  if (name === "save_author_style_guide") return "已保存作者文风指南";
-  if (name === "evolve_author_style") return `已进化并保存作者文风指南 · ${String(result.source ?? "")}`;
-  if (typeof result.title === "string") return `已完成：${result.title}`;
-  if (typeof result.name === "string") return `已完成：${result.name}`;
-  return result.success === true ? "已完成" : "已返回结果";
+  if (name === "list_chapters") return `Read ${count("chapters")} chapters`;
+  if (name === "list_characters") return `Read ${count("characters")} characters`;
+  if (name === "list_world_entries") return `Read ${count("entries")} world book entries`;
+  if (name === "list_notes") return `Read ${count("notes")} notes`;
+  if (name === "read_note") return `Read note: ${isRecord(result.note) ? String(result.note.title ?? "") : ""}`.trim();
+  if (name === "search_chapters" || name === "search_knowledge") return `Found ${count("results")} relevant items`;
+  if (name === "read_chapter") return `Read chapter: ${isRecord(result.chapter) ? String(result.chapter.title ?? "") : ""}`.trim();
+  if (name === "read_character") return `Read character: ${isRecord(result.character) ? String(result.character.name ?? "") : ""}`.trim();
+  if (name === "read_world_entry") return `Read world entry: ${isRecord(result.entry) ? String(result.entry.name ?? "") : ""}`.trim();
+  if (name === "read_author_style_guide") return result.exists === true ? "Read the author style guide" : "This project has no author style guide yet";
+  if (name === "list_style_sources") return `Read ${count("sources")} reference books`;
+  if (name === "list_style_profiles") return `Read ${count("profiles")} style profiles`;
+  if (name === "read_style_source_sample") return `Read reference sample: ${isRecord(result.source) ? String(result.source.title ?? "") : ""}`.trim();
+  if (name === "read_style_profile") return `Read style: ${isRecord(result.profile) ? String(result.profile.name ?? "") : ""}`.trim();
+  if (name === "select_style_profile") return `Switched writing style: ${String(result.active_profile_name ?? "")}`;
+  if (name === "save_reference_style_profile") return `Saved reference style: ${String(result.name ?? "")}`;
+  if (name === "save_author_style_guide") return "Saved the author style guide";
+  if (name === "evolve_author_style") return `Evolved and saved the author style guide · ${String(result.source ?? "")}`;
+  if (typeof result.title === "string") return `Done: ${result.title}`;
+  if (typeof result.name === "string") return `Done: ${result.name}`;
+  return result.success === true ? "Done" : "Returned a result";
 }
 
 function latestUserRequest(history: ChatMessage[]): string {
@@ -271,25 +274,25 @@ function latestUserRequest(history: ChatMessage[]): string {
 }
 
 function requiresKnowledgeSynchronization(content: string): boolean {
-  const hasKnowledgeSubject = /(创作思路|世界观|世界书|设定|角色|人物|关系|背景|阵营|势力|地点|规则|能力|剧情|情节)/.test(content);
-  const hasDecision = /(我想|我准备|我决定|确定|设定为|改成|改为|调整|新增|加入|删除|取消|更新|同步|补充|以后|接下来|让.+(?:成为|会|要))/.test(content);
+  const hasKnowledgeSubject = /(创作思路|世界观|世界书|设定|角色|人物|关系|背景|阵营|势力|地点|规则|能力|剧情|情节|worldview|world book|setting|lore|canon|character|relationship|background|faction|location|rule|ability|plot|storyline)/i.test(content);
+  const hasDecision = /(我想|我准备|我决定|确定|设定为|改成|改为|调整|新增|加入|删除|取消|更新|同步|补充|以后|接下来|让.+(?:成为|会|要)|i want|i plan|i(?:'ve| have) decided|i decided|set (?:it )?to|change (?:it )?to|adjust|add|introduce|remove|delete|cancel|update|sync(?:hronise|hronize)?|supplement|from now on|going forward|next|make .+ (?:become|will|should))/i.test(content);
   return hasKnowledgeSubject && hasDecision;
 }
 
 function requiresAgentCollaboration(content: string): boolean {
-  if (/(多智能体|子智能体|agent|协作|分工)/i.test(content)) return true;
-  const hasAction = /(帮我|请|需要|设计|规划|分析|审查|检查|完善|调整|生成|构建|梳理|推演)/.test(content);
+  if (/(多智能体|子智能体|agent|协作|分工|multi-agent|sub-?agents?|collaborat|divide (?:the )?work)/i.test(content)) return true;
+  const hasAction = /(帮我|请|需要|设计|规划|分析|审查|检查|完善|调整|生成|构建|梳理|推演|help|please|need|design|plan|analys|analy[sz]e|review|check|improve|adjust|generate|build|organi[sz]e|reason)/i.test(content);
   const dimensions = [
-    /(章节|正文|文风|对话)/,
-    /(剧情|情节|大纲|节奏|伏笔)/,
-    /(角色|人物|关系|弧光)/,
-    /(世界观|世界书|设定|背景|势力)/,
+    /(章节|正文|文风|对话|chapter|prose|writing style|dialogue)/i,
+    /(剧情|情节|大纲|节奏|伏笔|plot|storyline|outline|pacing|foreshadow)/i,
+    /(角色|人物|关系|弧光|character|relationship|character arc)/i,
+    /(世界观|世界书|设定|背景|势力|worldview|world book|lore|setting|background|faction)/i,
   ].filter((pattern) => pattern.test(content)).length;
   return hasAction && (dimensions >= 2 || (dimensions >= 1 && content.length >= 80));
 }
 
 function isWritingRequest(content: string): boolean {
-  return /(正文|章节|续写|扩写|改写|重写|润色|仿写|写作|写(?:一|这|第|下|后|个).{0,8}章)/.test(content);
+  return /(正文|章节|续写|扩写|改写|重写|润色|仿写|写作|写(?:一|这|第|下|后|个).{0,8}章|prose|chapter|continue writing|keep writing|expand|rewrite|rephrase|polish|write (?:a|the|this|next|another)|draft)/i.test(content);
 }
 
 function requiredSkillForRequest(
@@ -298,20 +301,20 @@ function requiredSkillForRequest(
   request: string,
 ): AgentSkill | null {
   const skills = enabledSkillsForAgent(catalog, agent);
-  const lornSkillId = /(更新我的文风|保存并进化文风)/.test(request)
+  const lornSkillId = /(更新我的文风|保存并进化文风|update my (?:writing )?style|save and evolve (?:my )?style)/i.test(request)
     ? "plugin-lorn-style--evolution"
-    : /(蒸馏文风|分析小说文风|提取文笔\s*DNA)/i.test(request)
+    : /(蒸馏文风|分析小说文风|提取文笔\s*DNA|distill (?:the )?style|extract (?:the )?(?:style|writing) DNA|analys(?:e|is) (?:the )?(?:novel|writing) style|analy[sz]e (?:the )?(?:novel|writing) style)/i.test(request)
       ? "plugin-lorn-style--distillation"
       : null;
   if (lornSkillId) return skills.find((skill) => skill.id === lornSkillId) ?? null;
   if (!requiresAgentCollaboration(request) && !requiresKnowledgeSynchronization(request)) return null;
-  const preferredIds = /(审查|检查|质量|复盘)/.test(request)
+  const preferredIds = /(审查|检查|质量|复盘|review|check|quality|retrospective)/i.test(request)
     ? ["builtin-skill--story-quality", "builtin-skill--reader-contract"]
-    : /(角色|人物|对白|对话|关系)/.test(request)
+    : /(角色|人物|对白|对话|关系|character|relationship|dialogue)/i.test(request)
       ? ["builtin-skill--character-design", "builtin-skill--character-relationship", "builtin-skill--dialogue-design"]
-      : /(正文|章节|续写|扩写|改写|润色)/.test(request)
+      : /(正文|章节|续写|扩写|改写|润色|prose|chapter|continue|expand|rewrite|polish)/i.test(request)
         ? ["builtin-skill--prose-format", "builtin-skill--story-quality", "builtin-skill--deslop-writing"]
-        : /(世界观|世界书|设定|背景|阵营|势力|创作思路)/.test(request)
+        : /(世界观|世界书|设定|背景|阵营|势力|创作思路|worldview|world book|lore|setting|background|faction)/i.test(request)
           ? ["builtin-skill--story-state-tracking", "builtin-skill--story-hooks"]
           : ["builtin-skill--story-state-tracking", "builtin-skill--story-quality"];
   return preferredIds.map((id) => skills.find((skill) => skill.id === id)).find(Boolean) ?? skills[0] ?? null;
@@ -319,21 +322,21 @@ function requiredSkillForRequest(
 
 function requiredArgument(args: Record<string, unknown>, key: string): string {
   const value = args[key];
-  if (typeof value !== "string" || !value.trim()) throw new Error(`缺少参数 ${key}`);
+  if (typeof value !== "string" || !value.trim()) throw new Error(`Missing argument ${key}`);
   return value.trim();
 }
 
 function normalizeQuestions(args: Record<string, unknown>): AgentClarificationQuestion[] {
   if (!Array.isArray(args.questions) || args.questions.length < 1 || args.questions.length > 3) {
-    throw new Error("ask_user 每次必须提供 1 至 3 个互不依赖的问题");
+    throw new Error("ask_user must provide 1 to 3 independent questions each time");
   }
   return args.questions.map((item, index) => {
-    if (!isRecord(item)) throw new Error(`第 ${index + 1} 个问题格式无效`);
+    if (!isRecord(item)) throw new Error(`Question ${index + 1} has an invalid format`);
     const title = typeof item.title === "string" ? truncate(item.title, 160) : "";
-    if (!title) throw new Error(`第 ${index + 1} 个问题缺少标题`);
+    if (!title) throw new Error(`Question ${index + 1} is missing a title`);
     const description = typeof item.description === "string" ? truncate(item.description, 500) : undefined;
     if (!Array.isArray(item.options) || item.options.length > 5) {
-      throw new Error(`问题“${title}”最多提供 5 个选项`);
+      throw new Error(`Question "${title}" may have at most 5 options`);
     }
     const seen = new Set<string>();
     const options = item.options.flatMap((option) => {
@@ -383,57 +386,58 @@ function systemPrompt(input: {
   consistencyReason: string | null;
   userRequest: string;
 }): string {
-  const sections = [`你是 OpenFicM 移动端的 ${input.agent.name} 智能体。当前作品是《${input.project.title}》。
-作品简介：${input.project.description || "暂无"}
-作品、章节、角色、世界书和聊天记录都保存在本机；只有调用用户配置的模型 API 时联网。
-必须依据工具读取到的当前作品数据工作，不得把其他作品的信息混入本作品。
-用户明确给出新的创作决定、角色变化、世界规则或剧情事实时，不要只在聊天中复述：先读取现有角色与世界书，确认属于正式设定后，调用 create/edit 工具同步到作品。若内容仍是脑暴、存在多种解释或是否采用尚不明确，先调用 ask_user 让用户确认，再写入；不得把未确认的备选想法当作正式设定。
-章节新增或修改后，优先根据当前正文判断角色或世界书是否真的发生变化；发现已确认的新事实时调用对应 create/edit 工具同步。不要为了形式上的检查阻塞当前任务，也不要在没有变化时反复读取全部资料。删除角色或世界书条目只响应用户明确要求。所有写工具仍受用户权限审批。
-任务存在会显著影响结果的偏好或歧义时，使用 ask_user 提出一至三个互不依赖的问题；简单问题不要反问。
-技能不能只凭名称假设内容；任务匹配技能说明时，先调用 activate_skill 加载完整指令。工具参数必须严格符合声明。`];
+  const sections = [`You are the ${input.agent.name} agent of the OpenFicM mobile app. The current project is "${input.project.title}".
+Project synopsis: ${input.project.description || "none"}
+The project, chapters, characters, world book and chat history are stored on this device; the app only goes online when calling the model API the user configured.
+Work strictly from the current project data returned by tools; never mix information from other projects into this one.
+When the user clearly states a new creative decision, character change, world rule or plot fact, do not merely restate it in chat. First read the existing characters and world book, confirm it is canonical, then call the create/edit tools to sync it into the project. If it is still brainstorming, has several possible interpretations, or is not yet confirmed, call ask_user first and only then write; never treat an unconfirmed option as canonical.
+After a chapter is added or changed, prefer judging from the current prose whether a character or world entry really changed, and call the matching create/edit tools for confirmed new facts. Do not block the current task with a token check, and do not re-read all material when nothing changed. Delete characters or world entries only when the user explicitly asks. All write tools remain subject to the user's permission approval.
+When a preference or ambiguity would materially change the result, use ask_user to ask one to three independent questions; do not ask back on simple questions.
+Never assume a skill's content from its name; when a task matches a skill description, first call activate_skill to load the full instructions. Tool arguments must strictly match their declarations.`];
 
   if (input.consistencyReason) {
-    sections.push(`检测到需要关注的作品变动：${input.consistencyReason}\n优先根据当前任务判断是否需要同步角色或世界书；确认的新事实应写入对应资料，不要为了形式检查阻塞本轮任务。`);
+    sections.push(`A change worth attention was detected in the project: ${input.consistencyReason}\nPrefer judging from the current task whether characters or the world book need syncing; write confirmed new facts into the matching material, and do not block this task with a token check.`);
   }
   if (input.agent.systemPrompt.trim()) {
-    sections.push(`当前智能体定义：\n${input.agent.systemPrompt.trim()}`);
+    sections.push(`Current agent definition:\n${input.agent.systemPrompt.trim()}`);
   }
   if (input.catalog.activeStyleProfile && shouldInjectAuthorStyleGuide(input.agent, input.userRequest)) {
     const profile = input.catalog.activeStyleProfile;
-    const profileType = profile.kind === "author" ? "作者文风" : "参考小说文风";
-    sections.push(`当前创作使用的${profileType}是“${styleProfileLabel(profile)}”：\n${truncate(profile.guide, 16_000)}\n\n生成或修改正文时必须把这份指南作为额外文风约束；它不能覆盖用户本轮明确要求、事实一致性或安全边界。不得复制参考小说原句或专有表达。`);
+    const profileType = profile.kind === "author" ? "author style" : "reference-novel style";
+    sections.push(`The ${profileType} currently used for writing is "${styleProfileLabel(profile)}":\n${truncate(profile.guide, 16_000)}\n\nTreat this guide as an additional style constraint when generating or editing prose; it cannot override the user's explicit request this turn, factual consistency or safety boundaries. Do not copy sentences or proprietary expressions from the reference novel.`);
   }
   const enabledRules = input.catalog.rules.filter((rule) => rule.enabled && rule.content.trim());
   if (enabledRules.length) {
-    sections.push(`必须遵循的规则：\n${enabledRules.map((rule) => `- ${rule.name}：${rule.content.trim()}`).join("\n")}`);
+    sections.push(`Rules that must be followed:\n${enabledRules.map((rule) => `- ${rule.name}: ${rule.content.trim()}`).join("\n")}`);
   }
   if (input.catalog.notes.length) {
-    const scopeLabel = { project: "整书", volume: "卷", chapter: "章" } as const;
+    const scopeLabel = { project: "book", volume: "volume", chapter: "chapter" } as const;
     const listed = input.catalog.notes.slice(0, MAX_PROMPT_NOTE_TITLES);
-    const lines = listed.map((note) => `- [${scopeLabel[noteScope(note)]}] ${note.title}（id: ${note.id}）`);
+    const lines = listed.map((note) => `- [${scopeLabel[noteScope(note)]}] ${note.title} (id: ${note.id})`);
     if (input.catalog.notes.length > listed.length) {
-      lines.push(`- 另有 ${input.catalog.notes.length - listed.length} 条，调用 list_notes 查看完整列表`);
+      lines.push(`- ${input.catalog.notes.length - listed.length} more; call list_notes for the full list`);
     }
-    sections.push(`当前作品的笔记（此处只有标题，需要正文时调用 read_note）：\n${lines.join("\n")}`);
+    sections.push(`Notes for the current project (titles only here; call read_note for the content):\n${lines.join("\n")}`);
   }
-  sections.push("大纲、剧情走向、伏笔规划这类尚未在正文中发生的内容属于笔记，用 write_note 保存，不要写进世界书；世界书只放已经成立的设定，混入未发生的计划会让后续创作把它当成既定事实。");
+  sections.push("Outlines, plot directions and foreshadowing plans — content that has not yet happened in the prose — belong in notes; save them with write_note, not in the world book. The world book holds only established canon; mixing in unplanned ideas makes later writing treat them as fact.");
 
   const skills = enabledSkillsForAgent(input.catalog, input.agent);
   if (skills.length) {
-    sections.push(`可按需激活的技能：\n${skills.map((skill) => `- ${skill.name}（${skill.id}）：${skill.description}`).join("\n")}`);
+    sections.push(`Skills that can be activated on demand:\n${skills.map((skill) => `- ${skill.name} (${skill.id}): ${skill.description}`).join("\n")}`);
   }
   const delegates = enabledDelegates(input.catalog, input.agent);
   if (delegates.length) {
-    sections.push(`可委派的子智能体：\n${delegates.map((agent) => `- ${agent.name}（${agent.id}）：${agent.description}`).join("\n")}\n需要额外专业视角时才调用 delegate_agent，委派任务包含目标、作品上下文、交付物和限制；单轮续写、润色或小改动自己完成即可，不要为了形式分工额外发起请求。主智能体负责整合结果，不能把子智能体原文不加判断地直接转交用户。`);
+    sections.push(`Sub-agents that can be delegated to:\n${delegates.map((agent) => `- ${agent.name} (${agent.id}): ${agent.description}`).join("\n")}\nCall delegate_agent only when an extra specialist perspective is needed; the delegated task must include the goal, project context, deliverable and constraints. Handle a single-pass continuation, polish or small edit yourself — do not spin up extra requests just to look organised. The primary agent integrates the results and must not forward a sub-agent's raw output to the user without judgement.`);
   }
-  return sections.join("\n\n");
+  // Repeat the English contract last so it overrides any Chinese instructions quoted above.
+  return [ENGLISH_OUTPUT_CONTRACT, sections.join("\n\n"), ENGLISH_OUTPUT_CONTRACT].join("\n\n");
 }
 
 function activePrimaryAgent(agents: AgentDefinition[], activeAgentId: string | null): AgentDefinition {
   const selected = agents.find((agent) => agent.id === activeAgentId && agent.enabled && agent.kind === "primary")
     ?? agents.find((agent) => agent.id === "builtin-agent--build" && agent.enabled)
     ?? agents.find((agent) => agent.enabled && agent.kind === "primary");
-  if (!selected) throw new Error("没有可用的主智能体，请在设置中启用一个主智能体");
+  if (!selected) throw new Error("No primary agent is available; enable one in Settings");
   return selected;
 }
 
@@ -466,39 +470,39 @@ async function ensureWritingStyleSelection(input: {
   const eventId = input.recorder.add({
     kind: "question",
     status: "waiting",
-    title: "选择本次创作文风",
+    title: "Choose the writing style for this task",
     agentName: input.agentName,
-    detail: "正文生成前确认要注入的文风",
+    detail: "Confirm the style to inject before generating prose",
   });
   const response = await input.askUser({
     id: eventId,
     agentName: input.agentName,
     questions: [{
-      title: "这次正文使用哪种文风？",
-      description: "选择后会绑定到本次 AI 原稿，作者修改后可据此进化个人文风。",
+      title: "Which writing style should this prose use?",
+      description: "Your choice is bound to this AI draft; after you revise it, the author style can evolve from it.",
       options: [
         ...profiles.map((profile, index) => ({
-          label: `${styleProfileLabel(profile)}${index === 0 ? "（推荐）" : ""}`,
-          description: profile.kind === "author" ? "使用当前作品积累的作者文风" : "使用导入参考小说蒸馏出的约束",
+          label: `${styleProfileLabel(profile)}${index === 0 ? " (recommended)" : ""}`,
+          description: profile.kind === "author" ? "Use the author style accumulated for this project" : "Use constraints distilled from imported reference novels",
         })),
-        { label: "不使用文风", description: "只遵循本轮要求和作品设定" },
+        { label: "No style", description: "Follow only this turn's request and the project material" },
       ],
     }],
   });
   if (response.cancelled) {
-    input.recorder.update(eventId, { status: "completed", detail: "本次跳过文风选择" });
+    input.recorder.update(eventId, { status: "completed", detail: "Skipped the style choice this time" });
     return;
   }
   const answer = response.answers[0]?.answer.trim() ?? "";
   let selected: StyleProfile | null = null;
-  if (!/不使用|不用|none/i.test(answer)) {
-    const normalizedAnswer = answer.replace(/（推荐）$/, "");
+  if (!/no style|without style|none|不使用|不用/i.test(answer)) {
+    const normalizedAnswer = answer.replace(/ \(recommended\)$/, "");
     selected = profileByLabel.get(normalizedAnswer)
       ?? profiles.find((profile) => profile.id === answer || profile.name === answer)
       ?? null;
     if (!selected) {
-      input.recorder.update(eventId, { status: "error", detail: "未找到选择的文风" });
-      throw new Error("未找到选择的文风，请从文风书库重新选择");
+      input.recorder.update(eventId, { status: "error", detail: "Selected style not found" });
+      throw new Error("The selected style could not be found; please choose again from the style library");
     }
   }
   await setActiveStyleProfile(input.projectId, selected?.id ?? null);
@@ -506,7 +510,7 @@ async function ensureWritingStyleSelection(input: {
   input.catalog.activeStyleProfile = selected;
   input.recorder.update(eventId, {
     status: "completed",
-    detail: selected ? `已选择 ${styleProfileLabel(selected)}` : "本次不使用文风",
+    detail: selected ? `Selected ${styleProfileLabel(selected)}` : "No style for this task",
   });
 }
 
@@ -516,10 +520,10 @@ async function authorizeToolCall(
   approveTool?: ToolApproval,
 ): Promise<void> {
   const permission = permissions[call.name] ?? "ask";
-  if (permission === "deny") throw new Error("该工具已在设置中禁用");
+  if (permission === "deny") throw new Error("This tool is disabled in Settings");
   if (permission === "ask") {
     const approved = approveTool ? await approveTool(call.name, call.arguments) : false;
-    if (!approved) throw new Error("用户未批准本次工具调用");
+    if (!approved) throw new Error("The user did not approve this tool call");
   }
 }
 
@@ -566,19 +570,19 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
     const skillEventId = input.recorder.add({
       kind: "skill",
       status: "running",
-      title: "正在激活技能：" + input.requiredSkill.name,
+      title: "Activating skill: " + input.requiredSkill.name,
       agentName: input.agent.name,
       toolName: "activate_skill",
-      detail: "根据当前任务自动加载专业指令",
+      detail: "Loading specialist instructions for this task",
       input: input.requiredSkill.description,
     });
     messages.push({
       role: "system",
-      content: "已激活技能“" + input.requiredSkill.name + "”，必须遵循以下完整指令：\n" + input.requiredSkill.instructions,
+      content: "Skill \"" + input.requiredSkill.name + "\" is now active. You must follow these complete instructions:\n" + input.requiredSkill.instructions,
     });
     input.recorder.update(skillEventId, {
       status: "completed",
-      title: "已激活技能：" + input.requiredSkill.name,
+      title: "Skill activated: " + input.requiredSkill.name,
       detail: input.requiredSkill.description,
     });
   }
@@ -587,16 +591,16 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
     consistencyEventId = input.recorder.add({
       kind: "consistency",
       status: "running",
-      title: "核对角色与世界书",
+      title: "Checking characters and world book",
       agentName: input.agent.name,
-      detail: input.consistencyReason ?? "正在检查作品设定变化",
+      detail: input.consistencyReason ?? "Checking for project canon changes",
     });
   }
 
   for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration += 1) {
     throwIfAborted(input.signal);
     if (input.budget.remaining <= 0) {
-      throw new Error("本次任务的模型请求次数已达上限，请拆分需求后重试");
+      throw new Error("This task reached the model request limit; split the request and try again");
     }
     input.budget.remaining -= 1;
     const turn = await callModel(input.selection, messages, tools, { signal: input.signal });
@@ -607,12 +611,12 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
         input.recorder.update(consistencyEventId, {
           status: "completed",
           detail: characterConsistencyChecked && worldConsistencyChecked
-            ? "已核对角色与世界书，并同步确认的变化"
-            : "已完成本轮创作；未发现需要同步的角色或世界书变化",
+            ? "Checked characters and world book and synced the confirmed changes"
+            : "Finished this turn's writing; no character or world book changes needed syncing",
         });
       }
       return {
-        content: turn.content || "模型没有返回内容",
+        content: turn.content || "The model returned no content",
         consistencyRequired,
         characterConsistencyChecked,
         worldConsistencyChecked,
@@ -636,47 +640,47 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
         title: toolDisplayName(call.name),
         agentName: input.agent.name,
         toolName: call.name,
-        detail: permission === "ask" ? "等待工具权限" : "正在执行",
+        detail: permission === "ask" ? "Waiting for tool permission" : "Running",
         input: formatTracePayload(call.arguments),
       });
       try {
-        if (!allowedToolNames.has(call.name)) throw new Error(`${input.agent.name} 无权使用工具 ${call.name}`);
+        if (!allowedToolNames.has(call.name)) throw new Error(`${input.agent.name} is not allowed to use tool ${call.name}`);
         await authorizeToolCall(call, input.catalog.permissions, input.approveTool);
-        input.recorder.update(eventId, { status: "running", detail: "正在执行" });
+        input.recorder.update(eventId, { status: "running", detail: "Running" });
         let result: Record<string, unknown>;
         let eventTitle = toolDisplayName(call.name);
         let eventDetail: string;
 
         if (call.name === "ask_user") {
           const questions = normalizeQuestions(call.arguments);
-          if (!input.askUser) throw new Error("当前界面无法接收结构化回答");
+          if (!input.askUser) throw new Error("This screen cannot receive structured answers");
           input.recorder.update(eventId, {
             status: "waiting",
-            title: `${input.agent.name} 需要确认`,
-            detail: `等待回答 ${questions.length} 个问题`,
+            title: `${input.agent.name} needs confirmation`,
+            detail: `Waiting for answers to ${questions.length} question(s)`,
           });
           const response = await input.askUser({ id: eventId, agentName: input.agent.name, questions });
           result = { cancelled: response.cancelled, answers: response.answers };
-          eventTitle = `${input.agent.name} 的提问`;
-          eventDetail = response.cancelled ? "用户跳过了本次问题" : `已回答 ${response.answers.length} 个问题`;
+          eventTitle = `Questions from ${input.agent.name}`;
+          eventDetail = response.cancelled ? "The user skipped these questions" : `Answered ${response.answers.length} question(s)`;
         } else if (call.name === "activate_skill") {
           const requested = requiredArgument(call.arguments, "skill_name");
           const skill = enabledSkillsForAgent(input.catalog, input.agent)
             .find((item) => item.id === requested || item.name === requested);
-          if (!skill) throw new Error(`技能不在 ${input.agent.name} 的可用列表中: ${requested}`);
+          if (!skill) throw new Error(`Skill is not in the available list for ${input.agent.name}: ${requested}`);
           result = { skill_id: skill.id, skill_name: skill.name, instructions: skill.instructions };
-          eventTitle = `已激活技能：${skill.name}`;
+          eventTitle = `Skill activated: ${skill.name}`;
           eventDetail = skill.description;
         } else if (call.name === "delegate_agent") {
           if (input.depth >= MAX_DELEGATION_DEPTH || input.agent.kind !== "primary") {
-            throw new Error("只有主智能体可以委派一层子智能体");
+            throw new Error("Only a primary agent can delegate one level of sub-agents");
           }
           const agentId = requiredArgument(call.arguments, "agent_id");
           const childAgent = enabledDelegates(input.catalog, input.agent).find((agent) => agent.id === agentId);
-          if (!childAgent) throw new Error(`子智能体不在委派白名单中: ${agentId}`);
+          if (!childAgent) throw new Error(`Sub-agent is not on the delegation allow-list: ${agentId}`);
           const task = requiredArgument(call.arguments, "task");
-          eventTitle = `${childAgent.name} 正在协作`;
-          input.recorder.update(eventId, { title: eventTitle, detail: "正在读取作品并处理任务" });
+          eventTitle = `${childAgent.name} is collaborating`;
+          input.recorder.update(eventId, { title: eventTitle, detail: "Reading the project and handling the task" });
           const childSelection = await selectionForAgent(childAgent, input.selection);
           const childResult = await runAgentLoop({
             ...input,
@@ -690,7 +694,7 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
             depth: input.depth + 1,
           });
           result = { agent_id: childAgent.id, agent_name: childAgent.name, result: childResult.content };
-          eventDetail = `${childAgent.name} 已返回结果`;
+          eventDetail = `${childAgent.name} returned a result`;
         } else if (call.name === "evolve_author_style") {
           const evolved = await evolveAuthorStyle({
             projectId: input.project.id,
@@ -730,15 +734,15 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
               consistencyEventId = input.recorder.add({
                 kind: "consistency",
                 status: "running",
-                title: "核对角色与世界书",
+                title: "Checking characters and world book",
                 agentName: input.agent.name,
-                detail: "章节内容已变化，正在检查关联设定",
+                detail: "Chapter content changed; checking related canon",
               });
             } else {
               input.recorder.update(consistencyEventId, {
                 status: "running",
                 completedAt: undefined,
-                detail: "章节内容已变化，正在重新检查关联设定",
+                detail: "Chapter content changed; re-checking related canon",
               });
             }
           } else if (consistencyRequired) {
@@ -747,7 +751,7 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
             if (characterConsistencyChecked && worldConsistencyChecked && consistencyEventId) {
               input.recorder.update(consistencyEventId, {
                 status: "completed",
-                detail: "角色与世界书均已完成核对",
+                detail: "Characters and world book have both been checked",
               });
             }
           }
@@ -773,7 +777,7 @@ async function runAgentLoop(input: LoopInput): Promise<LoopResult> {
       }
     }
   }
-  throw new Error(`${input.agent.name} 工具调用次数过多，已停止本次任务`);
+  throw new Error(`${input.agent.name} made too many tool calls; this task was stopped`);
 }
 
 export async function runAgent(input: {
@@ -826,7 +830,7 @@ export async function runAgent(input: {
     && permissions.delegate_agent !== "deny";
   const consistencyReason = pendingConsistency
     || (requiresKnowledgeSynchronization(userRequest)
-      ? "用户本轮提供了可能影响角色或世界书的创作决定"
+      ? "The user provided a creative decision this turn that may affect characters or the world book"
       : null);
   const requiredSkill = requiredSkillForRequest(catalog, agent, userRequest);
   const recorder = createTraceRecorder(agent, collaborationSuggested, input.onTrace);

@@ -35,7 +35,7 @@ export function Header({ title, action, onBack }: { title: string; action?: Reac
     <View style={styles.header}>
       <View style={styles.headerLeading}>
         {onBack ? (
-          <Pressable accessibilityLabel="返回" onPress={onBack} style={styles.headerBack}>
+          <Pressable accessibilityLabel="Back" onPress={onBack} style={styles.headerBack}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </Pressable>
         ) : null}
@@ -103,7 +103,7 @@ export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: (
       <Text style={styles.errorText}>{message}</Text>
       {onRetry ? (
         <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retryButton}>
-          <Text style={styles.retryText}>重试</Text>
+          <Text style={styles.retryText}>Retry</Text>
         </Pressable>
       ) : null}
     </View>
@@ -121,7 +121,7 @@ export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: (
 export function SheetBackdrop({ onPress, children }: PropsWithChildren<{ onPress: () => void }>) {
   return (
     <View style={styles.sheetBackdrop}>
-      <Pressable accessibilityLabel="关闭弹层" style={StyleSheet.absoluteFill} onPress={onPress} />
+      <Pressable accessibilityLabel="Close sheet" style={StyleSheet.absoluteFill} onPress={onPress} />
       {children}
     </View>
   );

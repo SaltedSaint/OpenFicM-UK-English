@@ -223,7 +223,7 @@ export function WritingScreen() {
     setSaving(true);
     setError(null);
     try {
-      const nextTitle = draft.title.trim() || "未命名章节";
+      const nextTitle = draft.title.trim() || "Untitled chapter";
       await saveChapter(draft.chapterId, nextTitle, draft.content);
       const snapshot = await recordLatestAuthorRevision(draft.chapterId, draft.content);
       const updatedAt = new Date().toISOString();
@@ -290,7 +290,7 @@ export function WritingScreen() {
       return;
     }
     if (savingRef.current) {
-      setError("章节正在保存，请稍后再切换");
+      setError("A chapter is saving; try switching again shortly");
       return;
     }
     if (!await persistDraft(false)) return;
@@ -300,7 +300,7 @@ export function WritingScreen() {
 
   const openNameDialog = async (dialog: NameDialog, initialValue: string) => {
     if (savingRef.current) {
-      setError("章节正在保存，请稍后再操作");
+      setError("A chapter is saving; try again shortly");
       return;
     }
     if (!await persistDraft(false)) return;
@@ -351,7 +351,7 @@ export function WritingScreen() {
 
   const removeChapter = async (chapter: Chapter, removeNotes: boolean) => {
     if (savingRef.current) {
-      setError("章节正在保存，请稍后再删除");
+      setError("A chapter is saving; try deleting again shortly");
       return;
     }
     if (chapter.id === activeChapter?.id && !await persistDraft(false)) return;
@@ -378,26 +378,26 @@ export function WritingScreen() {
     setChapterPickerVisible(false);
     const noteCount = await countNotesUnder({ chapterId: chapter.id }).catch(() => 0);
     if (!noteCount) {
-      Alert.alert("删除章节", "确定删除《" + chapter.title + "》？正文和本地索引会一并删除。", [
-        { text: "取消", style: "cancel" },
-        { text: "删除", style: "destructive", onPress: () => { void removeChapter(chapter, false); } },
+      Alert.alert("Delete chapter", "Delete \"" + chapter.title + "\"? The text and local index will be deleted too.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => { void removeChapter(chapter, false); } },
       ]);
       return;
     }
     Alert.alert(
-      "删除章节",
-      "《" + chapter.title + "》有 " + noteCount + " 条笔记。正文和本地索引会一并删除，笔记怎么处理？",
+      "Delete chapter",
+      "\"" + chapter.title + "\" has " + noteCount + " note(s). The text and local index will be deleted too — what should happen to the notes?",
       [
-        { text: "取消", style: "cancel" },
-        { text: "保留笔记", onPress: () => { void removeChapter(chapter, false); } },
-        { text: "一并删除", style: "destructive", onPress: () => { void removeChapter(chapter, true); } },
+        { text: "Cancel", style: "cancel" },
+        { text: "Keep notes", onPress: () => { void removeChapter(chapter, false); } },
+        { text: "Delete them too", style: "destructive", onPress: () => { void removeChapter(chapter, true); } },
       ],
     );
   };
 
   const removeVolume = async (volume: Volume, removeNotes: boolean) => {
     if (savingRef.current) {
-      setError("章节正在保存，请稍后再删除");
+      setError("A chapter is saving; try deleting again shortly");
       return;
     }
     const removesActiveChapter = activeChapter?.volumeId === volume.id;
@@ -425,28 +425,28 @@ export function WritingScreen() {
     setDirectoryTarget(null);
     setChapterPickerVisible(false);
     if (volumes.length <= 1) {
-      Alert.alert("无法删除", "每部作品至少需要保留一卷，可以改为重命名。");
+      Alert.alert("Cannot delete", "Each project must keep at least one volume; you can rename it instead.");
       return;
     }
     const chapterCount = chapters.filter((chapter) => chapter.volumeId === volume.id).length;
     const detail = chapterCount
-      ? "其中 " + chapterCount + " 章正文和本地索引会一并删除。"
-      : "该卷目前没有章节。";
+      ? "Its " + chapterCount + " chapter(s), text and local index will all be deleted."
+      : "This volume currently has no chapters.";
     void countNotesUnder({ volumeId: volume.id }).catch(() => 0).then((noteCount) => {
       if (!noteCount) {
-        Alert.alert("删除卷", "确定删除《" + volume.title + "》？" + detail, [
-          { text: "取消", style: "cancel" },
-          { text: "删除", style: "destructive", onPress: () => { void removeVolume(volume, false); } },
+        Alert.alert("Delete volume", "Delete \"" + volume.title + "\"? " + detail, [
+          { text: "Cancel", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: () => { void removeVolume(volume, false); } },
         ]);
         return;
       }
       Alert.alert(
-        "删除卷",
-        "《" + volume.title + "》及其章节共有 " + noteCount + " 条笔记。" + detail + "笔记怎么处理？",
+        "Delete volume",
+        "\"" + volume.title + "\" and its chapters have " + noteCount + " note(s). " + detail + "What should happen to the notes?",
         [
-          { text: "取消", style: "cancel" },
-          { text: "保留笔记", onPress: () => { void removeVolume(volume, false); } },
-          { text: "一并删除", style: "destructive", onPress: () => { void removeVolume(volume, true); } },
+          { text: "Cancel", style: "cancel" },
+          { text: "Keep notes", onPress: () => { void removeVolume(volume, false); } },
+          { text: "Delete them too", style: "destructive", onPress: () => { void removeVolume(volume, true); } },
         ],
       );
     });
@@ -457,10 +457,10 @@ export function WritingScreen() {
     if (volume) {
       void openNameDialog(
         { kind: "create-chapter", volume },
-        "第" + (chapters.length + 1) + "章",
+        "Chapter " + (chapters.length + 1),
       );
     } else {
-      void openNameDialog({ kind: "create-volume" }, "第一卷");
+      void openNameDialog({ kind: "create-volume" }, "Volume 1");
     }
   };
 
@@ -498,7 +498,7 @@ export function WritingScreen() {
       setActiveStyleProfileState(evolved.profile);
       setPendingEvolution(null);
       refreshData();
-      Alert.alert("作者文风已进化", "已保存为“" + evolved.profile.name + " V" + evolved.profile.version + "”，后续创作将使用这个版本。");
+      Alert.alert("Author style evolved", "Saved as \"" + evolved.profile.name + " V" + evolved.profile.version + "\"; later writing will use this version.");
     } catch (evolutionError) {
       setError(evolutionError instanceof Error ? evolutionError.message : String(evolutionError));
     } finally {
@@ -528,29 +528,29 @@ export function WritingScreen() {
   };
 
   const nameDialogTitle = nameDialog?.kind === "create-volume"
-    ? "新建卷"
+    ? "New volume"
     : nameDialog?.kind === "rename-volume"
-      ? "重命名卷"
+      ? "Rename volume"
       : nameDialog?.kind === "create-chapter"
-        ? "新建章节"
-        : "重命名章节";
+        ? "New chapter"
+        : "Rename chapter";
   const nameDialogLabel = nameDialog?.kind === "create-volume" || nameDialog?.kind === "rename-volume"
-    ? "卷名"
-    : "章节名";
+    ? "Volume name"
+    : "Chapter name";
 
-  if (!projectId) return <Screen><EmptyState title="请先从书架选择一部作品" /></Screen>;
-  if (loading) return <Screen><Header title="写作" /><View style={styles.loading}><Text style={styles.muted}>正在打开作品...</Text></View></Screen>;
+  if (!projectId) return <Screen><EmptyState title="Choose a project from the shelf first" /></Screen>;
+  if (loading) return <Screen><Header title="Writing" /><View style={styles.loading}><Text style={styles.muted}>Opening project…</Text></View></Screen>;
 
   return (
     <Screen>
       <Header
-        title={project?.title ?? "写作"}
+        title={project?.title ?? "Writing"}
         action={(
           <View style={styles.headerActions}>
-            <Pressable accessibilityLabel="导出作品" onPress={() => setExportPickerVisible(true)} style={styles.iconButton}>
+            <Pressable accessibilityLabel="Export project" onPress={() => setExportPickerVisible(true)} style={styles.iconButton}>
               <Ionicons name="share-outline" size={22} color={colors.primary} />
             </Pressable>
-            <Pressable accessibilityLabel={volumes.length ? "新建章节" : "新建卷"} onPress={openNewChapter} style={styles.iconButton}>
+            <Pressable accessibilityLabel={volumes.length ? "New chapter" : "New volume"} onPress={openNewChapter} style={styles.iconButton}>
               <Ionicons name={volumes.length ? "document-text-outline" : "folder-open-outline"} size={23} color={colors.primary} />
             </Pressable>
           </View>
@@ -559,15 +559,15 @@ export function WritingScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior="height" automaticOffset>
         <Pressable accessibilityRole="button" onPress={() => setChapterPickerVisible(true)} style={styles.chapterPicker}>
           <View style={styles.chapterPickerTextGroup}>
-            <Text numberOfLines={1} style={styles.chapterPickerVolume}>{activeVolume?.title ?? "作品目录"}</Text>
-            <Text numberOfLines={1} style={styles.chapterPickerText}>{activeChapter?.title ?? "选择章节"}</Text>
+            <Text numberOfLines={1} style={styles.chapterPickerVolume}>{activeVolume?.title ?? "Contents"}</Text>
+            <Text numberOfLines={1} style={styles.chapterPickerText}>{activeChapter?.title ?? "Choose a chapter"}</Text>
           </View>
           <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => setStylePickerVisible(true)} style={styles.styleSelector}>
           <Ionicons name="color-wand-outline" size={17} color={activeStyleProfile ? colors.primary : colors.textMuted} />
           <Text numberOfLines={1} style={[styles.styleSelectorText, activeStyleProfile && styles.styleSelectorTextActive]}>
-            {activeStyleProfile ? styleProfileLabel(activeStyleProfile) : "不使用创作文风"}
+            {activeStyleProfile ? styleProfileLabel(activeStyleProfile) : "No writing style"}
           </Text>
           <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
         </Pressable>
@@ -580,7 +580,7 @@ export function WritingScreen() {
                   value={title}
                   onChangeText={(value) => updateDraft(value, content)}
                   style={styles.titleInput}
-                  placeholder="章节标题"
+                  placeholder="Chapter title"
                   placeholderTextColor={colors.textMuted}
                   maxLength={200}
                 />
@@ -588,7 +588,7 @@ export function WritingScreen() {
                   value={content}
                   onChangeText={(value) => updateDraft(title, value)}
                   style={[styles.contentInput, { fontSize: editorFontSize, lineHeight: Math.round(editorFontSize * 1.65) }]}
-                  placeholder="开始写作..."
+                  placeholder="Start writing…"
                   placeholderTextColor={colors.textMuted}
                   multiline
                   textAlignVertical="top"
@@ -596,35 +596,35 @@ export function WritingScreen() {
                 />
                 <View style={styles.editorFooter}>
                   <Text style={styles.counter}>
-                    {content.replace(/\s/g, "").length + " 字" + (dirty ? " · 未保存" : savedAt ? " · " + savedAt + " 已保存" : "")}
+                    {content.replace(/\s/g, "").length + " chars" + (dirty ? " · unsaved" : savedAt ? " · saved " + savedAt : "")}
                   </Text>
-                  <Button label={saving ? "保存中" : "保存并预览"} onPress={() => { void saveAndPreview(); }} disabled={saving} loading={saving} />
+                  <Button label={saving ? "Saving" : "Save & preview"} onPress={() => { void saveAndPreview(); }} disabled={saving} loading={saving} />
                 </View>
               </>
             ) : (
               <View style={styles.preview}>
                 <View style={styles.previewHeader}>
                   <View style={styles.previewHeading}>
-                    <Text style={styles.previewTitle}>{title || "未命名章节"}</Text>
-                    <Text style={styles.previewMeta}>{content.replace(/\s/g, "").length + " 字" + (savedAt ? " · " + savedAt + " 已保存" : "")}</Text>
+                    <Text style={styles.previewTitle}>{title || "Untitled chapter"}</Text>
+                    <Text style={styles.previewMeta}>{content.replace(/\s/g, "").length + " chars" + (savedAt ? " · saved " + savedAt : "")}</Text>
                   </View>
-                  <Pressable accessibilityLabel="编辑章节" onPress={() => setEditing(true)} style={styles.editButton}>
+                  <Pressable accessibilityLabel="Edit chapter" onPress={() => setEditing(true)} style={styles.editButton}>
                     <Ionicons name="create-outline" size={22} color={colors.primary} />
-                    <Text style={styles.editButtonText}>编辑</Text>
+                    <Text style={styles.editButtonText}>Edit</Text>
                   </Pressable>
                 </View>
                 <ScrollView style={styles.previewScroll} contentContainerStyle={styles.previewContent} showsVerticalScrollIndicator>
                   <Text selectable style={[styles.previewText, { fontSize: editorFontSize, lineHeight: Math.round(editorFontSize * 1.65) }]}>
-                    {content || "本章暂无正文，点击右上角编辑开始写作。"}
+                    {content || "No text in this chapter yet. Tap Edit in the top-right to start writing."}
                   </Text>
                 </ScrollView>
                 <View style={styles.editorFooter}>
-                  <Text style={styles.counter}>{dirty ? "正在保存修改..." : "预览模式"}</Text>
+                  <Text style={styles.counter}>{dirty ? "Saving changes…" : "Preview mode"}</Text>
                   <View style={styles.previewActions}>
                     {pendingEvolution ? (
-                      <Button label="进化作者文风" variant="secondary" onPress={() => { void evolveFromRevision(); }} disabled={saving || evolvingStyle} loading={evolvingStyle} />
+                      <Button label="Evolve author style" variant="secondary" onPress={() => { void evolveFromRevision(); }} disabled={saving || evolvingStyle} loading={evolvingStyle} />
                     ) : null}
-                    {dirty ? <Button label="保存" onPress={() => { void persistDraft(true); }} disabled={saving} loading={saving} /> : null}
+                    {dirty ? <Button label="Save" onPress={() => { void persistDraft(true); }} disabled={saving} loading={saving} /> : null}
                   </View>
                 </View>
               </View>
@@ -632,20 +632,20 @@ export function WritingScreen() {
           </View>
         ) : volumes[0] ? (
           <EmptyState
-            title={"《" + volumes[0].title + "》还没有章节"}
-            action={<Button label="新建章节" onPress={openNewChapter} />}
+            title={"\"" + volumes[0].title + "\" has no chapters yet"}
+            action={<Button label="New chapter" onPress={openNewChapter} />}
           />
         ) : (
           <EmptyState
-            title="还没有卷"
-            action={<Button label="新建卷" onPress={() => { void openNameDialog({ kind: "create-volume" }, "第一卷"); }} />}
+            title="No volumes yet"
+            action={<Button label="New volume" onPress={() => { void openNameDialog({ kind: "create-volume" }, "Volume 1"); }} />}
           />
         )}
       </KeyboardAvoidingView>
 
       <StyleProfilePickerSheet
         visible={stylePickerVisible}
-        subtitle="会用于助手后续生成或修改正文"
+        subtitle="Used for the assistant's later prose generation or edits"
         options={styleOptions}
         activeProfileId={activeStyleProfile?.id ?? null}
         onSelect={(profile) => void chooseStyle(profile)}
@@ -656,16 +656,16 @@ export function WritingScreen() {
         <SheetBackdrop onPress={() => setChapterPickerVisible(false)}>
           <View style={styles.directorySheet}>
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>作品目录</Text>
+              <Text style={styles.sheetTitle}>Contents</Text>
               <View style={styles.sheetHeaderActions}>
                 <Pressable
-                  accessibilityLabel="新建卷"
-                  onPress={() => { void openNameDialog({ kind: "create-volume" }, "第" + (volumes.length + 1) + "卷"); }}
+                  accessibilityLabel="New volume"
+                  onPress={() => { void openNameDialog({ kind: "create-volume" }, "Volume " + (volumes.length + 1)); }}
                   style={styles.iconButton}
                 >
                   <Ionicons name="folder-open-outline" size={22} color={colors.primary} />
                 </Pressable>
-                <Pressable accessibilityLabel="关闭目录" onPress={() => setChapterPickerVisible(false)} style={styles.iconButton}>
+                <Pressable accessibilityLabel="Close contents" onPress={() => setChapterPickerVisible(false)} style={styles.iconButton}>
                   <Ionicons name="close" size={24} color={colors.textMuted} />
                 </Pressable>
               </View>
@@ -680,13 +680,13 @@ export function WritingScreen() {
                 <View style={styles.volumeHeader}>
                   <Ionicons name="folder-open-outline" size={18} color={colors.accent} />
                   <Text numberOfLines={1} style={styles.volumeTitle}>{section.volume.title}</Text>
-                  <Text style={styles.volumeCount}>{section.data.length + " 章"}</Text>
+                  <Text style={styles.volumeCount}>{section.data.length + " chapters"}</Text>
                   <Pressable
-                    accessibilityLabel={"在" + section.volume.title + "中新建章节"}
+                    accessibilityLabel={"New chapter in " + section.volume.title}
                     onPress={() => {
                       void openNameDialog(
                         { kind: "create-chapter", volume: section.volume },
-                        "第" + (chapters.length + 1) + "章",
+                        "Chapter " + (chapters.length + 1),
                       );
                     }}
                     style={styles.rowAction}
@@ -694,7 +694,7 @@ export function WritingScreen() {
                     <Ionicons name="add" size={21} color={colors.primary} />
                   </Pressable>
                   <Pressable
-                    accessibilityLabel={"管理" + section.volume.title}
+                    accessibilityLabel={"Manage " + section.volume.title}
                     onPress={() => setDirectoryTarget({ kind: "volume", volume: section.volume })}
                     style={styles.rowAction}
                   >
@@ -717,7 +717,7 @@ export function WritingScreen() {
                   </Text>
                   {item.id === activeChapter?.id ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
                   <Pressable
-                    accessibilityLabel={"管理" + item.title}
+                    accessibilityLabel={"Manage " + item.title}
                     onPress={(event) => {
                       event.stopPropagation();
                       setDirectoryTarget({ kind: "chapter", chapter: item });
@@ -730,8 +730,8 @@ export function WritingScreen() {
               )}
               ListEmptyComponent={(
                 <EmptyState
-                  title="还没有卷"
-                  action={<Button label="新建卷" onPress={() => { void openNameDialog({ kind: "create-volume" }, "第一卷"); }} />}
+                  title="No volumes yet"
+                  action={<Button label="New volume" onPress={() => { void openNameDialog({ kind: "create-volume" }, "Volume 1"); }} />}
                 />
               )}
             />
@@ -743,32 +743,32 @@ export function WritingScreen() {
         <SheetBackdrop onPress={() => setExportPickerVisible(false)}>
           <View style={styles.actionSheet}>
             <View style={styles.exportHeader}>
-              <Text style={styles.actionTitle}>导出作品</Text>
-              <Pressable accessibilityLabel="关闭导出选项" onPress={() => setExportPickerVisible(false)} style={styles.iconButton}>
+              <Text style={styles.actionTitle}>Export project</Text>
+              <Pressable accessibilityLabel="Close export options" onPress={() => setExportPickerVisible(false)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
             <Pressable disabled={exporting || !activeChapter} onPress={() => { void handleExport("chapter"); }} style={[styles.exportOption, (!activeChapter || exporting) && styles.exportOptionDisabled]}>
               <Ionicons name="document-text-outline" size={23} color={activeChapter ? colors.primary : colors.textMuted} />
               <View style={styles.exportOptionText}>
-                <Text style={styles.exportOptionTitle}>当前章节</Text>
-                <Text style={styles.exportOptionMeta} numberOfLines={1}>{activeChapter?.title ?? "没有可导出的章节"}</Text>
+                <Text style={styles.exportOptionTitle}>Current chapter</Text>
+                <Text style={styles.exportOptionMeta} numberOfLines={1}>{activeChapter?.title ?? "No chapter to export"}</Text>
               </View>
               {exporting ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="chevron-forward" size={19} color={colors.textMuted} />}
             </Pressable>
             <Pressable disabled={exporting || !activeVolume} onPress={() => { void handleExport("volume"); }} style={[styles.exportOption, (!activeVolume || exporting) && styles.exportOptionDisabled]}>
               <Ionicons name="folder-open-outline" size={23} color={activeVolume ? colors.primary : colors.textMuted} />
               <View style={styles.exportOptionText}>
-                <Text style={styles.exportOptionTitle}>当前卷</Text>
-                <Text style={styles.exportOptionMeta} numberOfLines={1}>{activeVolume?.title ?? "没有可导出的卷"}</Text>
+                <Text style={styles.exportOptionTitle}>Current volume</Text>
+                <Text style={styles.exportOptionMeta} numberOfLines={1}>{activeVolume?.title ?? "No volume to export"}</Text>
               </View>
               <Ionicons name="chevron-forward" size={19} color={colors.textMuted} />
             </Pressable>
             <Pressable disabled={exporting || !volumes.length} onPress={() => { void handleExport("book"); }} style={[styles.exportOption, (!volumes.length || exporting) && styles.exportOptionDisabled]}>
               <Ionicons name="library-outline" size={23} color={volumes.length ? colors.primary : colors.textMuted} />
               <View style={styles.exportOptionText}>
-                <Text style={styles.exportOptionTitle}>整本小说</Text>
-                <Text style={styles.exportOptionMeta}>{volumes.length + " 卷 · " + chapters.length + " 章"}</Text>
+                <Text style={styles.exportOptionTitle}>Whole novel</Text>
+                <Text style={styles.exportOptionMeta}>{volumes.length + " volumes · " + chapters.length + " chapters"}</Text>
               </View>
               <Ionicons name="chevron-forward" size={19} color={colors.textMuted} />
             </Pressable>
@@ -786,13 +786,13 @@ export function WritingScreen() {
                 onPress={() => {
                   void openNameDialog(
                     { kind: "create-chapter", volume: directoryTarget.volume },
-                    "第" + (chapters.length + 1) + "章",
+                    "Chapter " + (chapters.length + 1),
                   );
                 }}
                 style={styles.actionRow}
               >
                 <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
-                <Text style={styles.actionText}>新建章节</Text>
+                <Text style={styles.actionText}>New chapter</Text>
               </Pressable>
             ) : null}
             <Pressable
@@ -806,7 +806,7 @@ export function WritingScreen() {
               style={styles.actionRow}
             >
               <Ionicons name="create-outline" size={22} color={colors.text} />
-              <Text style={styles.actionText}>重命名</Text>
+              <Text style={styles.actionText}>Rename</Text>
             </Pressable>
             <Pressable
               onPress={() => {
@@ -816,7 +816,7 @@ export function WritingScreen() {
               style={styles.actionRow}
             >
               <Ionicons name="trash-outline" size={22} color={colors.danger} />
-              <Text style={styles.actionTextDanger}>{directoryTarget?.kind === "volume" ? "删除卷" : "删除章节"}</Text>
+              <Text style={styles.actionTextDanger}>{directoryTarget?.kind === "volume" ? "Delete volume" : "Delete chapter"}</Text>
             </Pressable>
           </View>
         </SheetBackdrop>
@@ -836,8 +836,8 @@ export function WritingScreen() {
               onSubmitEditing={() => { void submitNameDialog(); }}
             />
             <View style={styles.nameDialogActions}>
-              <Button label="取消" variant="secondary" onPress={() => setNameDialog(null)} />
-              <Button label="确定" onPress={() => { void submitNameDialog(); }} disabled={!nameValue.trim()} loading={nameSaving} />
+              <Button label="Cancel" variant="secondary" onPress={() => setNameDialog(null)} />
+              <Button label="OK" onPress={() => { void submitNameDialog(); }} disabled={!nameValue.trim()} loading={nameSaving} />
             </View>
           </View>
         </KeyboardAvoidingView>

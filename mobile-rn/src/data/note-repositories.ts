@@ -38,8 +38,8 @@ export function noteScope(note: Pick<Note, "volumeId" | "chapterId">): NoteScope
 
 function requiredText(value: string, label: string, maximum: number): string {
   const normalized = value.trim();
-  if (!normalized) throw new Error(`${label}不能为空`);
-  if (normalized.length > maximum) throw new Error(`${label}超过 ${maximum} 字符限制`);
+  if (!normalized) throw new Error(`${label} cannot be empty`);
+  if (normalized.length > maximum) throw new Error(`${label} exceeds the ${maximum}-character limit`);
   return normalized;
 }
 
@@ -63,8 +63,8 @@ async function resolveTarget(
       "SELECT volume_id, project_id FROM chapters WHERE id = ?",
       chapterId,
     );
-    if (!chapter) throw new Error("章节不存在");
-    if (chapter.project_id !== projectId) throw new Error("章节不属于当前作品");
+    if (!chapter) throw new Error("Chapter not found");
+    if (chapter.project_id !== projectId) throw new Error("The chapter does not belong to the current project");
     return { volumeId: chapter.volume_id, chapterId };
   }
   const volumeId = target.volumeId?.trim() || null;
@@ -73,8 +73,8 @@ async function resolveTarget(
       "SELECT project_id FROM volumes WHERE id = ?",
       volumeId,
     );
-    if (!volume) throw new Error("卷不存在");
-    if (volume.project_id !== projectId) throw new Error("卷不属于当前作品");
+    if (!volume) throw new Error("Volume not found");
+    if (volume.project_id !== projectId) throw new Error("The volume does not belong to the current project");
     return { volumeId, chapterId: null };
   }
   return { volumeId: null, chapterId: null };
@@ -131,11 +131,11 @@ export async function createNote(input: {
     "SELECT id FROM projects WHERE id = ?",
     input.projectId,
   );
-  if (!project) throw new Error("作品不存在");
-  const title = requiredText(input.title, "笔记标题", MAX_NOTE_TITLE_CHARACTERS);
+  if (!project) throw new Error("Project not found");
+  const title = requiredText(input.title, "Note title", MAX_NOTE_TITLE_CHARACTERS);
   const content = (input.content ?? "").trim();
   if (content.length > MAX_NOTE_CONTENT_CHARACTERS) {
-    throw new Error(`笔记内容超过 ${MAX_NOTE_CONTENT_CHARACTERS} 字符限制`);
+    throw new Error(`Note content exceeds the ${MAX_NOTE_CONTENT_CHARACTERS}-character limit`);
   }
   const target = await resolveTarget(input.projectId, input);
   const id = createId();
@@ -181,13 +181,13 @@ export async function updateNote(input: {
 }): Promise<Note> {
   const database = await getDatabase();
   const existing = await database.getFirstAsync<NoteRow>("SELECT * FROM notes WHERE id = ?", input.id);
-  if (!existing) throw new Error("笔记不存在");
+  if (!existing) throw new Error("Note not found");
   const title = input.title === undefined
     ? existing.title
-    : requiredText(input.title, "笔记标题", MAX_NOTE_TITLE_CHARACTERS);
+    : requiredText(input.title, "Note title", MAX_NOTE_TITLE_CHARACTERS);
   const content = input.content === undefined ? existing.content : input.content.trim();
   if (content.length > MAX_NOTE_CONTENT_CHARACTERS) {
-    throw new Error(`笔记内容超过 ${MAX_NOTE_CONTENT_CHARACTERS} 字符限制`);
+    throw new Error(`Note content exceeds the ${MAX_NOTE_CONTENT_CHARACTERS}-character limit`);
   }
   const updatedAt = new Date().toISOString();
   await database.runAsync(
@@ -203,7 +203,7 @@ export async function updateNote(input: {
 export async function moveNote(id: string, target: NoteTarget): Promise<Note> {
   const database = await getDatabase();
   const existing = await database.getFirstAsync<NoteRow>("SELECT * FROM notes WHERE id = ?", id);
-  if (!existing) throw new Error("笔记不存在");
+  if (!existing) throw new Error("Note not found");
   const resolved = await resolveTarget(existing.project_id, target);
   const updatedAt = new Date().toISOString();
   const next = await database.getFirstAsync<{ value: number }>(

@@ -80,16 +80,16 @@ export type SettingsCategory =
   | "advanced";
 
 const TITLES: Record<Exclude<SettingsCategory, "models">, string> = {
-  general: "通用",
-  connections: "连接",
-  index: "索引",
-  context: "上下文",
-  style: "作者文风",
-  "agent-tools": "工具权限",
-  rules: "规则",
-  skills: "技能",
-  agents: "智能体",
-  advanced: "高级",
+  general: "General",
+  connections: "Connections",
+  index: "Index",
+  context: "Context",
+  style: "Author style",
+  "agent-tools": "Tool permissions",
+  rules: "Rules",
+  skills: "Skills",
+  agents: "Agents",
+  advanced: "Advanced",
 };
 
 const EMPTY_OH_STORY_STATE: OhStoryUpdateState = { installed: null, previous: null, lastCheck: null };
@@ -261,7 +261,7 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
   const downloadResources = async () => {
     setResourceBusy(true);
     setError(null);
-    setResourceProgress("准备一键拉取运行资源…");
+    setResourceProgress("Preparing to fetch runtime resources…");
     try {
       const next = await installMissingRuntimeResources((item) => {
         if (item.totalBytes && item.totalBytes > 0 && item.bytesWritten !== undefined) {
@@ -271,9 +271,9 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
         }
       });
       setResourceState(next);
-      setResourceProgress("正在预热本地检索模型…");
+      setResourceProgress("Warming up the local retrieval models…");
       await warmUpLocalModels();
-      setResourceProgress("全部运行资源已就绪");
+      setResourceProgress("All runtime resources are ready");
     } catch (resourceError) {
       setError(resourceError instanceof Error ? resourceError.message : String(resourceError));
       setResourceState(await getRuntimeResourceState().catch(() => null));
@@ -297,11 +297,11 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
 
   const rebuildIndex = async () => {
     if (!projectId) {
-      setError("请先从书架打开一部作品");
+      setError("Open a project from the shelf first");
       return;
     }
     setSaving(true);
-    setIndexProgress("准备索引…");
+    setIndexProgress("Preparing index…");
     setError(null);
     try {
       await indexProject(projectId, {
@@ -309,7 +309,7 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
         onProgress: ({ completed, total, title }) => setIndexProgress(total ? `${completed}/${total} · ${title}` : title),
       });
       setIndexStats(await getProjectIndexStats(projectId));
-      setIndexProgress("索引完成");
+      setIndexProgress("Index complete");
     } catch (indexError) {
       setError(indexError instanceof Error ? indexError.message : String(indexError));
     } finally {
@@ -445,7 +445,7 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
   const checkOhStory = async () => {
     setOhStoryBusy(true);
     setError(null);
-    setOhStoryProgress("正在检查 GitHub Release…");
+    setOhStoryProgress("Checking the GitHub release…");
     try {
       const release = await checkOhStoryRelease();
       setOhStoryState((current) => ({ ...current, lastCheck: release }));
@@ -457,8 +457,8 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
         && release.commitSha !== (ohStoryState.installed.commitSha ?? ohStoryState.installed.treeSha),
       );
       setOhStoryProgress(sourceChanged
-        ? `${release.version} 的源码修订已变化，已阻止同版本静默覆盖`
-        : hasUpdate ? `发现 ${release.version}` : `已是最新版本 ${release.version}`);
+        ? `The source revision for ${release.version} changed; a silent same-version overwrite was blocked`
+        : hasUpdate ? `Found ${release.version}` : `Already on the latest version ${release.version}`);
     } catch (checkError) {
       setError(checkError instanceof Error ? checkError.message : String(checkError));
       setOhStoryProgress("");
@@ -470,13 +470,13 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
   const installOhStory = async (release: OhStoryRelease) => {
     setOhStoryBusy(true);
     setError(null);
-    setOhStoryProgress(`准备更新到 ${release.version}`);
+    setOhStoryProgress(`Preparing to update to ${release.version}`);
     try {
       const installed = await installOhStoryRelease(release, ({ completed, total }) => {
-        setOhStoryProgress(`下载并校验 ${completed}/${total}`);
+        setOhStoryProgress(`Downloading and verifying ${completed}/${total}`);
       });
       await reloadOhStoryCatalog();
-      setOhStoryProgress(`已安装 ${installed.version}`);
+      setOhStoryProgress(`Installed ${installed.version}`);
     } catch (installError) {
       setError(installError instanceof Error ? installError.message : String(installError));
     } finally {
@@ -486,11 +486,11 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
 
   const confirmOhStoryInstall = (release: OhStoryRelease) => {
     Alert.alert(
-      "更新 oh-story 内容包",
-      `将安装 ${release.version} 的 7 个 Skill 和 6 个移动端兼容子智能体。只导入 Markdown，不执行脚本或 Hook。`,
+      "Update the oh-story content pack",
+      `This installs the 7 skills and 6 mobile-compatible sub-agents of ${release.version}. Only Markdown is imported; no scripts or hooks are run.`,
       [
-        { text: "取消", style: "cancel" },
-        { text: "更新", onPress: () => void installOhStory(release) },
+        { text: "Cancel", style: "cancel" },
+        { text: "Update", onPress: () => void installOhStory(release) },
       ],
     );
   };
@@ -498,17 +498,17 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
   const confirmOhStoryRollback = () => {
     const previous = ohStoryState.previous;
     if (!previous) return;
-    Alert.alert("回滚 oh-story 内容包", `恢复到 ${previous.version}？当前版本会保留为可回滚版本。`, [
-      { text: "取消", style: "cancel" },
+    Alert.alert("Roll back the oh-story content pack", `Restore ${previous.version}? The current version is kept so you can roll back again.`, [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "回滚",
+        text: "Roll back",
         onPress: () => {
           setOhStoryBusy(true);
           setError(null);
           void rollbackOhStoryPackage()
             .then(async (restored) => {
               await reloadOhStoryCatalog();
-              setOhStoryProgress(`已恢复 ${restored.version}`);
+              setOhStoryProgress(`Restored ${restored.version}`);
             })
             .catch((rollbackError) => setError(rollbackError instanceof Error ? rollbackError.message : String(rollbackError)))
             .finally(() => setOhStoryBusy(false));
@@ -531,45 +531,45 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
       {error ? <View style={styles.errorWrap}><ErrorNotice message={error} onRetry={() => void load()} /></View> : null}
       {category === "general" ? (
         <View style={styles.section}>
-          <Field label="自动保存延迟（毫秒）" value={autoSaveDelay} onChangeText={setAutoSaveDelay} onBlur={() => void savePreference("general.autoSaveDelay", autoSaveDelay)} keyboardType="number-pad" />
-          <Field label="编辑器字号" value={editorFontSize} onChangeText={setEditorFontSize} onBlur={() => void savePreference("general.editorFontSize", editorFontSize)} keyboardType="number-pad" />
-          <SettingRow label="数据位置" value="本机 SQLite · API Key 使用 SecureStore" />
-          <Button label={backupBusy ? "正在导出" : "导出全部数据备份"} variant="secondary" onPress={() => void runBackup()} disabled={backupBusy} loading={backupBusy} />
-          <Text style={styles.fieldHint}>备份包含全部作品、角色、世界书、笔记、文风、设置和参考书，打包成 zip 通过系统分享保存；恢复方式见压缩包里的说明。</Text>
+          <Field label="Auto-save delay (ms)" value={autoSaveDelay} onChangeText={setAutoSaveDelay} onBlur={() => void savePreference("general.autoSaveDelay", autoSaveDelay)} keyboardType="number-pad" />
+          <Field label="Editor font size" value={editorFontSize} onChangeText={setEditorFontSize} onBlur={() => void savePreference("general.editorFontSize", editorFontSize)} keyboardType="number-pad" />
+          <SettingRow label="Data location" value="On-device SQLite · API keys use SecureStore" />
+          <Button label={backupBusy ? "Exporting" : "Export a full data backup"} variant="secondary" onPress={() => void runBackup()} disabled={backupBusy} loading={backupBusy} />
+          <Text style={styles.fieldHint}>The backup includes every project, character, world book, note, style, setting and reference book, packed as a zip and saved through system sharing; see the note inside the archive for how to restore.</Text>
         </View>
       ) : null}
       {category === "connections" ? (
         <View style={styles.section}>
-          <Field label="模型请求超时（毫秒）" value={requestTimeout} onChangeText={setRequestTimeout} onBlur={() => void savePreference("connections.requestTimeout", requestTimeout)} keyboardType="number-pad" />
-          <Field label="网络错误最多尝试次数（1-5）" value={maxAttempts} onChangeText={setMaxAttempts} onBlur={() => void savePreference("connections.maxAttempts", maxAttempts)} keyboardType="number-pad" />
-          <Field label="服务器错误最多尝试次数（1-3）" value={maxServerErrorAttempts} onChangeText={setMaxServerErrorAttempts} onBlur={() => void savePreference("connections.maxServerErrorAttempts", maxServerErrorAttempts)} keyboardType="number-pad" />
-          <Field label="限流（429）最多尝试次数（1-3）" value={maxRateLimitAttempts} onChangeText={setMaxRateLimitAttempts} onBlur={() => void savePreference("connections.maxRateLimitAttempts", maxRateLimitAttempts)} keyboardType="number-pad" />
-          <Text style={styles.fieldHint}>尝试次数包含第一次请求；限流默认不重试，避免放大中转站的限流。</Text>
-          <ToggleRow label="超时后自动重发（可能重复计费）" value={retryOnTimeout} onChange={(value) => {
+          <Field label="Model request timeout (ms)" value={requestTimeout} onChangeText={setRequestTimeout} onBlur={() => void savePreference("connections.requestTimeout", requestTimeout)} keyboardType="number-pad" />
+          <Field label="Max attempts on network error (1-5)" value={maxAttempts} onChangeText={setMaxAttempts} onBlur={() => void savePreference("connections.maxAttempts", maxAttempts)} keyboardType="number-pad" />
+          <Field label="Max attempts on server error (1-3)" value={maxServerErrorAttempts} onChangeText={setMaxServerErrorAttempts} onBlur={() => void savePreference("connections.maxServerErrorAttempts", maxServerErrorAttempts)} keyboardType="number-pad" />
+          <Field label="Max attempts on rate limit (429) (1-3)" value={maxRateLimitAttempts} onChangeText={setMaxRateLimitAttempts} onBlur={() => void savePreference("connections.maxRateLimitAttempts", maxRateLimitAttempts)} keyboardType="number-pad" />
+          <Text style={styles.fieldHint}>Attempt counts include the first request; rate limiting is not retried by default, to avoid amplifying throttling at a relay.</Text>
+          <ToggleRow label="Resend automatically after a timeout (may double-bill)" value={retryOnTimeout} onChange={(value) => {
             setRetryOnTimeout(value);
             void savePreference("connections.retryOnTimeout", String(value));
           }} />
-          <SettingRow label="供应商和模型" value="在“模型”分类中管理" />
-          <SettingRow label="网络边界" value="只有调用用户配置的模型 API 时联网；作品数据保存在本机" />
+          <SettingRow label="Providers and models" value="Managed in the Models category" />
+          <SettingRow label="Network boundary" value="The app goes online only when calling the model API you configured; project data stays on this device" />
         </View>
       ) : null}
       {category === "index" ? (
         <View style={styles.section}>
-          <ToggleRow label="启用本地语义索引" value={indexSettings.enabled} onChange={(value) => void saveIndex({ ...indexSettings, enabled: value })} />
-          <ToggleRow label="启用本地重排模型" value={indexSettings.rerankEnabled} onChange={(value) => void saveIndex({ ...indexSettings, rerankEnabled: value })} />
-          <Field label="分块大小（字符）" value={String(indexSettings.chunkSize)} onChangeText={(value) => setIndexSettings({ ...indexSettings, chunkSize: Number(value) || 120 })} onBlur={() => void saveIndex(indexSettings)} keyboardType="number-pad" />
-          <Field label="分块重叠（字符）" value={String(indexSettings.chunkOverlap)} onChangeText={(value) => setIndexSettings({ ...indexSettings, chunkOverlap: Number(value) || 0 })} onBlur={() => void saveIndex(indexSettings)} keyboardType="number-pad" />
-          <Field label="召回数量" value={String(indexSettings.retrievalTopK)} onChangeText={(value) => setIndexSettings({ ...indexSettings, retrievalTopK: Number(value) || 1 })} onBlur={() => void saveIndex(indexSettings)} keyboardType="number-pad" />
-          <Field label="重排数量" value={String(indexSettings.rerankTopK)} onChangeText={(value) => setIndexSettings({ ...indexSettings, rerankTopK: Number(value) || 1 })} onBlur={() => void saveIndex(indexSettings)} keyboardType="number-pad" />
-          <Text style={styles.statusText}>当前索引：{indexStats.sources} 个资料源 · {indexStats.chunks} 个分块</Text>
-          <Button label={saving ? "索引中" : "重建当前作品索引"} onPress={() => void rebuildIndex()} disabled={!projectId || saving} loading={saving} />
+          <ToggleRow label="Enable the local semantic index" value={indexSettings.enabled} onChange={(value) => void saveIndex({ ...indexSettings, enabled: value })} />
+          <ToggleRow label="Enable the local reranking model" value={indexSettings.rerankEnabled} onChange={(value) => void saveIndex({ ...indexSettings, rerankEnabled: value })} />
+          <Field label="Chunk size (characters)" value={String(indexSettings.chunkSize)} onChangeText={(value) => setIndexSettings({ ...indexSettings, chunkSize: Number(value) || 120 })} onBlur={() => void saveIndex(indexSettings)} keyboardType="number-pad" />
+          <Field label="Chunk overlap (characters)" value={String(indexSettings.chunkOverlap)} onChangeText={(value) => setIndexSettings({ ...indexSettings, chunkOverlap: Number(value) || 0 })} onBlur={() => void saveIndex(indexSettings)} keyboardType="number-pad" />
+          <Field label="Retrieval count" value={String(indexSettings.retrievalTopK)} onChangeText={(value) => setIndexSettings({ ...indexSettings, retrievalTopK: Number(value) || 1 })} onBlur={() => void saveIndex(indexSettings)} keyboardType="number-pad" />
+          <Field label="Rerank count" value={String(indexSettings.rerankTopK)} onChangeText={(value) => setIndexSettings({ ...indexSettings, rerankTopK: Number(value) || 1 })} onBlur={() => void saveIndex(indexSettings)} keyboardType="number-pad" />
+          <Text style={styles.statusText}>Current index: {indexStats.sources} sources · {indexStats.chunks} chunks</Text>
+          <Button label={saving ? "Indexing" : "Rebuild the current project index"} onPress={() => void rebuildIndex()} disabled={!projectId || saving} loading={saving} />
           {indexProgress ? <Text style={styles.progressText}>{indexProgress}</Text> : null}
         </View>
       ) : null}
       {category === "context" ? (
         <View style={styles.section}>
-          <Field label="保留最近消息数" value={historyLimit} onChangeText={setHistoryLimit} onBlur={() => void savePreference("context.historyLimit", historyLimit)} keyboardType="number-pad" />
-          <ToggleRow label="压缩系统提示词" value={compression} onChange={(value) => {
+          <Field label="Recent messages to keep" value={historyLimit} onChangeText={setHistoryLimit} onBlur={() => void savePreference("context.historyLimit", historyLimit)} keyboardType="number-pad" />
+          <ToggleRow label="Compress system prompts" value={compression} onChange={(value) => {
             setCompression(value);
             void savePreference("context.compressSystemPrompts", String(value));
           }} />
@@ -577,12 +577,12 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
       ) : null}
       {category === "style" ? (
         <View style={styles.section}>
-          <SettingRow label="文风书库" value="请从设置菜单重新进入" />
+          <SettingRow label="Style library" value="Re-open it from the settings menu" />
         </View>
       ) : null}
       {category === "agent-tools" ? (
         <View style={styles.section}>
-          <Text style={styles.sectionHint}>点击权限状态循环切换：允许、每次询问、禁止。</Text>
+          <Text style={styles.sectionHint}>Tap a permission to cycle through: Allow, Ask, Deny.</Text>
           {TOOL_CATALOG.map((tool) => (
             <Pressable key={tool.key} onPress={() => void cyclePermission(tool.key)} style={styles.permissionRow}>
               <View style={styles.permissionText}>
@@ -590,7 +590,7 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
                 <Text style={styles.settingValue}>{tool.key}</Text>
               </View>
               <Text style={[styles.permissionMode, permissions[tool.key] === "deny" && styles.dangerText]}>
-                {permissions[tool.key] === "allow" ? "允许" : permissions[tool.key] === "deny" ? "禁止" : "每次询问"}
+                {permissions[tool.key] === "allow" ? "Allow" : permissions[tool.key] === "deny" ? "Deny" : "Ask"}
               </Text>
             </Pressable>
           ))}
@@ -608,15 +608,15 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
                 const next = rules.map((item) => item.id === rule.id ? { ...item, enabled } : item);
                 void persistManagedState(next, saveAgentRules, setRules);
               }} trackColor={{ false: colors.border, true: colors.primary }} />
-              <Pressable accessibilityLabel="删除规则" onPress={() => {
+              <Pressable accessibilityLabel="Delete rule" onPress={() => {
                 const next = rules.filter((item) => item.id !== rule.id);
                 void persistManagedState(next, saveAgentRules, setRules);
               }} style={styles.iconButton}><Ionicons name="trash-outline" size={19} color={colors.textMuted} /></Pressable>
             </View>
           ))}
-          <Field label="规则名称" value={ruleName} onChangeText={setRuleName} />
-          <Field label="规则内容" value={ruleContent} onChangeText={setRuleContent} multiline style={styles.multiline} />
-          <Button label="添加规则" onPress={() => void addRule()} disabled={!ruleName.trim() || !ruleContent.trim()} />
+          <Field label="Rule name" value={ruleName} onChangeText={setRuleName} />
+          <Field label="Rule content" value={ruleContent} onChangeText={setRuleContent} multiline style={styles.multiline} />
+          <Button label="Add rule" onPress={() => void addRule()} disabled={!ruleName.trim() || !ruleContent.trim()} />
         </View>
       ) : null}
       {category === "skills" ? (
@@ -627,7 +627,7 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
                 <Text style={styles.settingLabel}>{skill.name}</Text>
                 <Text numberOfLines={2} style={styles.settingValue}>{skill.description || skill.instructions}</Text>
                 <Text style={styles.modelHint}>
-                  {skill.source === "builtin" ? "OpenFicM 基础包" : skill.source === "plugin" ? "Lorn 文风插件" : skill.source === "remote" ? "oh-story 更新技能" : "自定义技能"} · 按需激活
+                  {skill.source === "builtin" ? "OpenFicM built-in pack" : skill.source === "plugin" ? "Lorn style plugin" : skill.source === "remote" ? "oh-story updated skill" : "Custom skill"} · activated on demand
                 </Text>
               </View>
               <Switch value={skill.enabled} onValueChange={(enabled) => {
@@ -635,17 +635,17 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
                 void persistManagedState(next, saveAgentSkills, setSkills);
               }} trackColor={{ false: colors.border, true: colors.primary }} />
               {skill.source === "custom" ? (
-                <Pressable accessibilityLabel="删除技能" onPress={() => {
+                <Pressable accessibilityLabel="Delete skill" onPress={() => {
                   const next = skills.filter((item) => item.id !== skill.id);
                   void persistManagedState(next, saveAgentSkills, setSkills);
                 }} style={styles.iconButton}><Ionicons name="trash-outline" size={19} color={colors.textMuted} /></Pressable>
               ) : <View style={styles.iconButton}><Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} /></View>}
             </View>
           ))}
-          <Field label="技能名称" value={skillName} onChangeText={setSkillName} />
-          <Field label="技能说明" value={skillDescription} onChangeText={setSkillDescription} />
-          <Field label="技能指令" value={skillInstructions} onChangeText={setSkillInstructions} multiline style={styles.multiline} />
-          <Button label="添加技能" onPress={() => void addSkill()} disabled={!skillName.trim() || !skillInstructions.trim()} />
+          <Field label="Skill name" value={skillName} onChangeText={setSkillName} />
+          <Field label="Skill description" value={skillDescription} onChangeText={setSkillDescription} />
+          <Field label="Skill instructions" value={skillInstructions} onChangeText={setSkillInstructions} multiline style={styles.multiline} />
+          <Button label="Add skill" onPress={() => void addSkill()} disabled={!skillName.trim() || !skillInstructions.trim()} />
         </View>
       ) : null}
       {category === "agents" ? (
@@ -656,30 +656,30 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
                 <Text style={styles.settingLabel}>{agent.name}</Text>
                 <Text numberOfLines={2} style={styles.settingValue}>{agent.description || agent.systemPrompt}</Text>
                 <Text style={styles.modelHint}>
-                  {agent.source === "builtin" ? "OpenFicM 基础包" : agent.source === "remote" ? "oh-story 更新" : "自定义"} · {agent.kind === "primary" ? "主智能体" : "子智能体"} · {agent.skillIds.length} 个技能
+                  {agent.source === "builtin" ? "OpenFicM built-in pack" : agent.source === "remote" ? "oh-story update" : "Custom"} · {agent.kind === "primary" ? "Primary agent" : "Sub-agent"} · {agent.skillIds.length} skills
                 </Text>
-                {agent.modelId ? <Text style={styles.modelHint}>{availableModels.find((model) => model.id === agent.modelId)?.name ?? "模型已删除"}</Text> : null}
+                {agent.modelId ? <Text style={styles.modelHint}>{availableModels.find((model) => model.id === agent.modelId)?.name ?? "Model deleted"}</Text> : null}
               </View>
               <Switch value={agent.enabled} onValueChange={(enabled) => void toggleAgent(agent.id, enabled)} trackColor={{ false: colors.border, true: colors.primary }} />
               {agent.kind === "primary" ? (
-                <Pressable accessibilityLabel={`选择 ${agent.name} 主智能体`} disabled={!agent.enabled} onPress={() => void selectAgent(agent)} style={styles.iconButton}>
+                <Pressable accessibilityLabel={`Select ${agent.name} as primary agent`} disabled={!agent.enabled} onPress={() => void selectAgent(agent)} style={styles.iconButton}>
                   <Ionicons name={activeAgentId === agent.id ? "radio-button-on" : "radio-button-off"} size={21} color={activeAgentId === agent.id ? colors.primary : colors.textMuted} />
                 </Pressable>
               ) : <View style={styles.iconButton}><Ionicons name="git-branch-outline" size={20} color={colors.textMuted} /></View>}
               {agent.source === "custom" ? (
-                <Pressable accessibilityLabel="删除智能体" onPress={() => void removeAgent(agent.id)} style={styles.iconButton}>
+                <Pressable accessibilityLabel="Delete agent" onPress={() => void removeAgent(agent.id)} style={styles.iconButton}>
                   <Ionicons name="trash-outline" size={19} color={colors.textMuted} />
                 </Pressable>
               ) : <View style={styles.iconButton}><Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} /></View>}
             </View>
           ))}
-          <Field label="智能体名称" value={agentName} onChangeText={setAgentName} />
-          <Field label="智能体说明" value={agentDescription} onChangeText={setAgentDescription} />
-          <Field label="系统提示词" value={agentPrompt} onChangeText={setAgentPrompt} multiline style={styles.multiline} />
-          <Text style={styles.sectionHint}>智能体模型</Text>
+          <Field label="Agent name" value={agentName} onChangeText={setAgentName} />
+          <Field label="Agent description" value={agentDescription} onChangeText={setAgentDescription} />
+          <Field label="System prompt" value={agentPrompt} onChangeText={setAgentPrompt} multiline style={styles.multiline} />
+          <Text style={styles.sectionHint}>Agent model</Text>
           <View style={styles.modelChoices}>
             <Pressable onPress={() => setAgentModelId("")} style={[styles.modelChoice, !agentModelId && styles.modelChoiceActive]}>
-              <Text style={styles.modelChoiceText}>跟随全局</Text>
+              <Text style={styles.modelChoiceText}>Follow global</Text>
             </Pressable>
             {availableModels.map((model) => (
               <Pressable key={model.id} onPress={() => setAgentModelId(model.id)} style={[styles.modelChoice, agentModelId === model.id && styles.modelChoiceActive]}>
@@ -687,29 +687,29 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
               </Pressable>
             ))}
           </View>
-          <Button label="添加智能体" onPress={() => void addAgent()} disabled={!agentName.trim() || !agentPrompt.trim()} />
+          <Button label="Add agent" onPress={() => void addAgent()} disabled={!agentName.trim() || !agentPrompt.trim()} />
         </View>
       ) : null}
       {category === "advanced" ? (
         <View style={styles.section}>
-          <Text style={styles.subsectionTitle}>应用版本</Text>
-          <SettingRow label="当前版本" value={CURRENT_APP_VERSION} />
+          <Text style={styles.subsectionTitle}>App version</Text>
+          <SettingRow label="Current version" value={CURRENT_APP_VERSION} />
           <SettingRow
-            label="最新版本"
-            value={appUpdate ? `${appUpdate.latestVersion}${appUpdate.hasUpdate ? "（可更新）" : "（已是最新）"}` : "尚未检查"}
+            label="Latest version"
+            value={appUpdate ? `${appUpdate.latestVersion}${appUpdate.hasUpdate ? " (update available)" : " (up to date)"}` : "Not checked yet"}
           />
           {appUpdate?.checkedAt ? (
-            <SettingRow label="上次检查" value={new Date(appUpdate.checkedAt).toLocaleString()} />
+            <SettingRow label="Last checked" value={new Date(appUpdate.checkedAt).toLocaleString()} />
           ) : null}
           <Button
-            label={appUpdateBusy ? "检查中" : "检查应用更新"}
+            label={appUpdateBusy ? "Checking" : "Check for app updates"}
             onPress={() => void checkForAppUpdate()}
             disabled={appUpdateBusy}
             loading={appUpdateBusy}
           />
           {appUpdate?.hasUpdate ? (
             <Button
-              label={`前往下载 ${appUpdate.latestVersion}`}
+              label={`Go to download ${appUpdate.latestVersion}`}
               onPress={() => void Linking.openURL(appUpdate.releaseUrl)}
             />
           ) : null}
@@ -718,41 +718,41 @@ export function SettingsCategoryScreen({ category, onBack }: { category: Exclude
             <Text style={styles.updateNotes} numberOfLines={12}>{appUpdate.notes}</Text>
           ) : null}
           <View style={styles.subsectionDivider} />
-          <Text style={styles.subsectionTitle}>oh-story 内容包</Text>
-          <SettingRow label="本地版本" value={ohStoryState.installed?.version ?? "未安装"} />
-          <SettingRow label="最近发现" value={ohStoryState.lastCheck ? `${ohStoryState.lastCheck.version} · ${ohStoryState.lastCheck.commitSha.slice(0, 8)}` : "尚未检查"} />
+          <Text style={styles.subsectionTitle}>oh-story content pack</Text>
+          <SettingRow label="Local version" value={ohStoryState.installed?.version ?? "Not installed"} />
+          <SettingRow label="Latest found" value={ohStoryState.lastCheck ? `${ohStoryState.lastCheck.version} · ${ohStoryState.lastCheck.commitSha.slice(0, 8)}` : "Not checked yet"} />
           {ohStoryState.installed ? (
             <>
               <SettingRow
-                label="已安装内容"
-                value={`${ohStoryState.installed.skills.length} 个技能 · ${ohStoryState.installed.agents.length} 个子智能体 · ${ohStoryState.installed.sha256.slice(0, 12)}`}
+                label="Installed content"
+                value={`${ohStoryState.installed.skills.length} skills · ${ohStoryState.installed.agents.length} sub-agents · ${ohStoryState.installed.sha256.slice(0, 12)}`}
               />
               {ohStoryState.installed.commitSha || ohStoryState.installed.treeSha ? (
-                <SettingRow label="源码修订" value={(ohStoryState.installed.commitSha ?? ohStoryState.installed.treeSha ?? "").slice(0, 12)} />
+                <SettingRow label="Source revision" value={(ohStoryState.installed.commitSha ?? ohStoryState.installed.treeSha ?? "").slice(0, 12)} />
               ) : null}
             </>
           ) : null}
-          <Button label={ohStoryBusy ? "处理中" : "检查 GitHub Release"} onPress={() => void checkOhStory()} disabled={ohStoryBusy} loading={ohStoryBusy && ohStoryProgress.includes("检查")} />
+          <Button label={ohStoryBusy ? "Working" : "Check the GitHub release"} onPress={() => void checkOhStory()} disabled={ohStoryBusy} loading={ohStoryBusy && ohStoryProgress.includes("Checking")} />
           {ohStoryUpdateAvailable && ohStoryState.lastCheck ? (
-            <Button label={`更新到 ${ohStoryState.lastCheck.version}`} onPress={() => confirmOhStoryInstall(ohStoryState.lastCheck as OhStoryRelease)} disabled={ohStoryBusy} />
+            <Button label={`Update to ${ohStoryState.lastCheck.version}`} onPress={() => confirmOhStoryInstall(ohStoryState.lastCheck as OhStoryRelease)} disabled={ohStoryBusy} />
           ) : null}
           {ohStoryState.previous ? (
-            <Button label={`回滚到 ${ohStoryState.previous.version}`} variant="secondary" onPress={confirmOhStoryRollback} disabled={ohStoryBusy} />
+            <Button label={`Roll back to ${ohStoryState.previous.version}`} variant="secondary" onPress={confirmOhStoryRollback} disabled={ohStoryBusy} />
           ) : null}
           {ohStoryProgress ? <Text style={styles.progressText}>{ohStoryProgress}</Text> : null}
           <View style={styles.subsectionDivider} />
-          <Text style={styles.subsectionTitle}>本地检索模型</Text>
-          <SettingRow label="嵌入模型" value={`${LOCAL_MODEL_INFO.embedding.name} · 约 15 MB`} />
-          <SettingRow label="重排模型" value={`${LOCAL_MODEL_INFO.rerank.name} · 约 209 MB`} />
-          <SettingRow label="当前加载状态" value={`嵌入：${getLocalModelStatus().embeddingLoaded ? "已加载" : "未加载"} · 重排：${getLocalModelStatus().rerankLoaded ? "已加载" : "未加载"}`} />
-          <SettingRow label="运行资源状态" value={resourceState?.ready ? "完整" : `缺少 ${resourceState?.missing.length ?? "未知"} 项`} />
-          <Button label={resourceBusy ? "拉取中" : "一键拉取缺失资源"} onPress={() => void downloadResources()} disabled={resourceBusy} loading={resourceBusy} />
+          <Text style={styles.subsectionTitle}>Local retrieval models</Text>
+          <SettingRow label="Embedding model" value={`${LOCAL_MODEL_INFO.embedding.name} · about 25 MB`} />
+          <SettingRow label="Rerank model" value={`${LOCAL_MODEL_INFO.rerank.name} · about 209 MB`} />
+          <SettingRow label="Current load state" value={`Embedding: ${getLocalModelStatus().embeddingLoaded ? "loaded" : "not loaded"} · Rerank: ${getLocalModelStatus().rerankLoaded ? "loaded" : "not loaded"}`} />
+          <SettingRow label="Runtime resource status" value={resourceState?.ready ? "Complete" : `Missing ${resourceState?.missing.length ?? "unknown"} item(s)`} />
+          <Button label={resourceBusy ? "Fetching" : "Fetch missing resources"} onPress={() => void downloadResources()} disabled={resourceBusy} loading={resourceBusy} />
           {resourceProgress ? <Text style={styles.progressText}>{resourceProgress}</Text> : null}
-          <Button label="清除当前作品索引" variant="secondary" onPress={() => {
+          <Button label="Clear the current project index" variant="secondary" onPress={() => {
             if (!projectId) return;
-            Alert.alert("清除索引", "只删除索引，不删除章节、角色和世界书数据。", [
-              { text: "取消", style: "cancel" },
-              { text: "清除", style: "destructive", onPress: () => void clearProjectIndex(projectId).then(() => setIndexStats({ sources: 0, chunks: 0 })) },
+            Alert.alert("Clear index", "This deletes only the index, not chapter, character or world book data.", [
+              { text: "Cancel", style: "cancel" },
+              { text: "Clear", style: "destructive", onPress: () => void clearProjectIndex(projectId).then(() => setIndexStats({ sources: 0, chunks: 0 })) },
             ]);
           }} disabled={!projectId} />
         </View>

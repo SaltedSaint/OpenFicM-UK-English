@@ -14,7 +14,7 @@ powershell -ExecutionPolicy Bypass -File scripts/build-release.ps1
 
 模型文件不会提交到 Git，也不会打进 APK。首次启动时，应用从 Hugging Face 下载以下文件到应用私有目录，并校验文件大小和 SHA-256：
 
-- bge-small-zh-v1.5-q4_k_m.gguf
+- bge-small-en-v1.5-q4_k_m.gguf
 - bge-reranker-base-q4_k_m.gguf
 
 正式构建脚本会先清理 android/app/build 生成目录，并在输出前检查 APK；只要发现任何 GGUF 条目就会直接失败，避免旧增量资源被误发布。

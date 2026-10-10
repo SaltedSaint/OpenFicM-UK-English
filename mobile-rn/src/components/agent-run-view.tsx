@@ -46,10 +46,10 @@ function statusColor(status: AgentTraceEventStatus): string {
 }
 
 function runStatus(trace: AgentRunTrace): { label: string; color: string } {
-  if (trace.status === "error") return { label: "执行失败", color: colors.danger };
-  if (trace.events.some((event) => event.status === "waiting")) return { label: "等待你的操作", color: colors.accent };
-  if (trace.status === "running") return { label: "正在协作", color: colors.primary };
-  return { label: "已完成", color: colors.primary };
+  if (trace.status === "error") return { label: "Run failed", color: colors.danger };
+  if (trace.events.some((event) => event.status === "waiting")) return { label: "Waiting for you", color: colors.accent };
+  if (trace.status === "running") return { label: "Collaborating", color: colors.primary };
+  return { label: "Completed", color: colors.primary };
 }
 
 function EventPayload({ label, value }: { label: string; value: string }) {
@@ -94,8 +94,8 @@ function TraceEventRow({ event }: { event: AgentTraceEvent }) {
       </Pressable>
       {expanded ? (
         <View style={styles.payloads}>
-          {event.input ? <EventPayload label="输入" value={event.input} /> : null}
-          {event.output ? <EventPayload label="结果" value={event.output} /> : null}
+          {event.input ? <EventPayload label="Input" value={event.input} /> : null}
+          {event.output ? <EventPayload label="Result" value={event.output} /> : null}
         </View>
       ) : null}
     </View>
@@ -131,12 +131,12 @@ export function AgentTraceView({
   }, [trace.status]);
 
   const summary = [
-   counts.agents ? `${counts.agents} 个智能体` : "",
-   counts.tools ? `${counts.tools} 项工具` : "",
-   counts.skills ? `${counts.skills} 个技能` : "",
-    counts.explored ? `已探索 ${counts.explored} 项` : "",
-    counts.questions ? `${counts.questions} 次提问` : "",
-  ].filter(Boolean).join(" · ") || "正在分析任务";
+   counts.agents ? `${counts.agents} agents` : "",
+   counts.tools ? `${counts.tools} tools` : "",
+   counts.skills ? `${counts.skills} skills` : "",
+    counts.explored ? `${counts.explored} explored` : "",
+    counts.questions ? `${counts.questions} questions` : "",
+  ].filter(Boolean).join(" · ") || "Analysing the task";
 
   return (
     <View style={[styles.trace, trace.status === "error" && styles.traceError]}>
@@ -156,7 +156,7 @@ export function AgentTraceView({
         {trace.status === "running" ? <ActivityIndicator size="small" color={colors.primary} /> : null}
         {trace.status === "error" && onRetry ? (
           <Pressable
-            accessibilityLabel="重试失败任务"
+            accessibilityLabel="Retry failed task"
             accessibilityRole="button"
             disabled={retryDisabled}
             onPress={(event) => {
@@ -166,7 +166,7 @@ export function AgentTraceView({
             style={[styles.traceRetry, retryDisabled && styles.traceRetryDisabled]}
           >
             <Ionicons name="refresh-outline" size={16} color={colors.danger} />
-            <Text style={styles.traceRetryText}>{retryDisabled ? "处理中" : "重试"}</Text>
+            <Text style={styles.traceRetryText}>{retryDisabled ? "Working" : "Retry"}</Text>
           </Pressable>
         ) : null}
         <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={colors.textMuted} />
@@ -176,7 +176,7 @@ export function AgentTraceView({
           {trace.collaborationRequired ? (
             <View style={styles.collaborationNotice}>
               <Ionicons name="people-outline" size={16} color={colors.primary} />
-              <Text style={styles.collaborationText}>此任务可按需调用专业子智能体协作</Text>
+              <Text style={styles.collaborationText}>This task can call in specialist sub-agents as needed</Text>
             </View>
           ) : null}
           {trace.events.map((event) => <TraceEventRow key={event.id} event={event} />)}
@@ -226,10 +226,10 @@ export function AgentQuestionSheet({
               <Ionicons name="help-circle-outline" size={21} color={colors.primary} />
             </View>
             <View style={styles.questionHeaderCopy}>
-              <Text style={styles.questionSheetTitle}>{request.agentName} 需要你的选择</Text>
-              <Text style={styles.questionSheetSubtitle}>{request.questions.length} 个问题</Text>
+              <Text style={styles.questionSheetTitle}>{request.agentName} needs your input</Text>
+              <Text style={styles.questionSheetSubtitle}>{request.questions.length} questions</Text>
             </View>
-            <Pressable accessibilityLabel="稍后回答" onPress={onCancel} style={styles.closeButton}>
+            <Pressable accessibilityLabel="Answer later" onPress={onCancel} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={colors.textMuted} />
             </Pressable>
           </View>
@@ -241,7 +241,7 @@ export function AgentQuestionSheet({
           >
             {request.questions.map((question, questionIndex) => (
               <View key={`${request.id}-${questionIndex}`} style={styles.question}>
-                <Text style={styles.questionIndex}>问题 {questionIndex + 1}</Text>
+                <Text style={styles.questionIndex}>Question {questionIndex + 1}</Text>
                 <Text style={styles.questionTitle}>{question.title}</Text>
                 {question.description ? <Text style={styles.questionDescription}>{question.description}</Text> : null}
                 <View accessibilityRole="radiogroup" style={styles.options}>
@@ -285,7 +285,7 @@ export function AgentQuestionSheet({
                       color={customAnswers[questionIndex] ? colors.primary : colors.textMuted}
                     />
                     <Text style={[styles.optionLabel, customAnswers[questionIndex] && styles.optionLabelSelected]}>
-                      自行输入答案
+                      Type your own answer
                     </Text>
                   </Pressable>
                   {customAnswers[questionIndex] ? (
@@ -294,7 +294,7 @@ export function AgentQuestionSheet({
                       multiline
                       maxLength={1200}
                       onChangeText={(value) => setAnswers((current) => ({ ...current, [questionIndex]: value }))}
-                      placeholder="输入你的决定或补充"
+                      placeholder="Enter your decision or additional detail"
                       placeholderTextColor={colors.textMuted}
                       style={styles.customInput}
                       value={answers[questionIndex] ?? ""}
@@ -305,8 +305,8 @@ export function AgentQuestionSheet({
             ))}
           </KeyboardAwareScrollView>
           <View style={styles.questionActions}>
-            <Button label="稍后再说" variant="secondary" onPress={onCancel} />
-            <Button label="提交回答" disabled={!canSubmit} onPress={submit} />
+            <Button label="Later" variant="secondary" onPress={onCancel} />
+            <Button label="Submit answers" disabled={!canSubmit} onPress={submit} />
           </View>
         </View>
       </View>

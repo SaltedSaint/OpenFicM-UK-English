@@ -153,7 +153,7 @@ export async function indexProject(
   } = {},
 ): Promise<IndexSummary> {
   const settings = await getIndexSettings();
-  if (!settings.enabled) throw new Error("本地索引已关闭");
+  if (!settings.enabled) throw new Error("The local index is disabled");
   const db = await getDatabase();
   const sources = await listIndexSources(projectId);
   const currentSourceIds = new Set(sources.map((source) => source.id));

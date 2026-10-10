@@ -34,14 +34,14 @@ export async function createChapterDraftSnapshot(input: {
   aiDraft: string;
 }): Promise<ChapterDraftSnapshot> {
   const aiDraft = input.aiDraft;
-  if (!aiDraft.trim()) throw new Error("AI 原稿不能为空");
+  if (!aiDraft.trim()) throw new Error("The AI draft cannot be empty");
   const database = await getDatabase();
   const chapter = await database.getFirstAsync<{ id: string }>(
     "SELECT id FROM chapters WHERE id = ? AND project_id = ?",
     input.chapterId,
     input.projectId,
   );
-  if (!chapter) throw new Error("章节不存在");
+  if (!chapter) throw new Error("Chapter not found");
   const now = new Date().toISOString();
   const snapshot: ChapterDraftSnapshot = {
     id: createId(),
@@ -137,5 +137,5 @@ export async function markChapterStyleEvolved(id: string): Promise<void> {
     new Date().toISOString(),
     id,
   );
-  if (result.changes !== 1) throw new Error("待进化的章节原稿不存在");
+  if (result.changes !== 1) throw new Error("There is no chapter draft pending evolution");
 }

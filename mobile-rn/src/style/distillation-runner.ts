@@ -32,15 +32,15 @@ export async function startStyleDistillation(input: {
     return {
       started: false,
       message: current
-        ? `正在蒸馏《${current.sourceTitle}》，等它完成或取消后再开始新的任务`
-        : "另一个蒸馏任务正在启动，请稍候",
+        ? `Distilling "${current.sourceTitle}"; wait for it to finish or cancel before starting a new task`
+        : "Another distillation task is starting; please wait",
     };
   }
   const store = useStyleDistillationStore.getState();
   if (store.task) {
     return {
       started: false,
-      message: `正在蒸馏《${store.task.sourceTitle}》，等它完成或取消后再开始新的任务`,
+      message: `Distilling "${store.task.sourceTitle}"; wait for it to finish or cancel before starting a new task`,
     };
   }
   controller = new AbortController();
@@ -58,7 +58,7 @@ export async function startStyleDistillation(input: {
     sourceId: input.sourceId,
     sourceTitle: input.sourceTitle,
     stage: "sampling",
-    label: input.restart ? "重新开始蒸馏章节样本" : "准备蒸馏章节样本",
+    label: input.restart ? "Restarting chapter sample distillation" : "Preparing chapter samples for distillation",
     completed: 0,
     total: 1,
     startedAt: new Date().toISOString(),

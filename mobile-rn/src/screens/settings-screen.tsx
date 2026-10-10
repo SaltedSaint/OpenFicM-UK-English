@@ -32,8 +32,8 @@ const providerDefaults: Record<ProviderType, { name: string; url: string }> = {
 };
 
 const OPENAI_API_MODES: Array<{ id: OpenAiApiMode; label: string; hint: string }> = [
-  { id: "chat-completions", label: "Chat Completions", hint: "POST /chat/completions，兼容性最好" },
-  { id: "responses", label: "Responses", hint: "POST /responses，OpenAI 新接口" },
+  { id: "chat-completions", label: "Chat Completions", hint: "POST /chat/completions; best compatibility" },
+  { id: "responses", label: "Responses", hint: "POST /responses; OpenAI's newer API" },
 ];
 
 const settingsCategories: Array<{
@@ -41,17 +41,17 @@ const settingsCategories: Array<{
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
 }> = [
-  { id: "general", label: "通用", icon: "options-outline" },
-  { id: "connections", label: "连接", icon: "link-outline" },
-  { id: "models", label: "模型与供应商", icon: "hardware-chip-outline" },
-  { id: "index", label: "索引", icon: "layers-outline" },
-  { id: "context", label: "上下文", icon: "document-text-outline" },
-  { id: "style", label: "作者文风", icon: "color-wand-outline" },
-  { id: "agent-tools", label: "工具权限", icon: "shield-checkmark-outline" },
-  { id: "rules", label: "规则", icon: "list-outline" },
-  { id: "skills", label: "技能", icon: "flash-outline" },
-  { id: "agents", label: "智能体", icon: "git-network-outline" },
-  { id: "advanced", label: "高级", icon: "construct-outline" },
+  { id: "general", label: "General", icon: "options-outline" },
+  { id: "connections", label: "Connections", icon: "link-outline" },
+  { id: "models", label: "Models & providers", icon: "hardware-chip-outline" },
+  { id: "index", label: "Index", icon: "layers-outline" },
+  { id: "context", label: "Context", icon: "document-text-outline" },
+  { id: "style", label: "Author style", icon: "color-wand-outline" },
+  { id: "agent-tools", label: "Tool permissions", icon: "shield-checkmark-outline" },
+  { id: "rules", label: "Rules", icon: "list-outline" },
+  { id: "skills", label: "Skills", icon: "flash-outline" },
+  { id: "agents", label: "Agents", icon: "git-network-outline" },
+  { id: "advanced", label: "Advanced", icon: "construct-outline" },
 ];
 
 export function SettingsScreen() {
@@ -144,11 +144,11 @@ export function SettingsScreen() {
     const parsedTemperature = Number(temperature);
     const parsedMaxTokens = Number(maxTokens);
     if (!Number.isFinite(parsedTemperature) || parsedTemperature < 0 || parsedTemperature > 2) {
-      setError("温度必须在 0 到 2 之间");
+      setError("Temperature must be between 0 and 2");
       return;
     }
     if (!Number.isInteger(parsedMaxTokens) || parsedMaxTokens < 1 || parsedMaxTokens > MAX_CONFIGURED_OUTPUT_TOKENS) {
-      setError(`最大输出 Token 数必须在 1 到 ${MAX_CONFIGURED_OUTPUT_TOKENS} 之间；1M 通常是上下文窗口，不需要填写 1000000`);
+      setError(`Maximum output tokens must be between 1 and ${MAX_CONFIGURED_OUTPUT_TOKENS}; a 1M figure is usually a context window, so do not enter 1000000`);
       return;
     }
     setSavingModel(true);
@@ -200,7 +200,7 @@ export function SettingsScreen() {
     try {
       const key = await getProviderApiKey(provider);
       const fetched = await fetchProviderModels(provider, key);
-      if (!fetched.length) throw new Error("供应商没有返回可用于生成内容的模型");
+      if (!fetched.length) throw new Error("The provider returned no model usable for content generation");
       setRemoteModels(fetched);
       setModelFilter("");
       setModelPickerProvider(provider);
@@ -300,11 +300,11 @@ export function SettingsScreen() {
     const parsedTemperature = Number(editModelTemperature);
     const parsedMaxTokens = Number(editModelMaxTokens);
     if (!Number.isFinite(parsedTemperature) || parsedTemperature < 0 || parsedTemperature > 2) {
-      setError("温度必须在 0 到 2 之间");
+      setError("Temperature must be between 0 and 2");
       return;
     }
     if (!Number.isInteger(parsedMaxTokens) || parsedMaxTokens < 1 || parsedMaxTokens > MAX_CONFIGURED_OUTPUT_TOKENS) {
-      setError(`最大输出 Token 数必须在 1 到 ${MAX_CONFIGURED_OUTPUT_TOKENS} 之间`);
+      setError(`Maximum output tokens must be between 1 and ${MAX_CONFIGURED_OUTPUT_TOKENS}`);
       return;
     }
     setSavingModelEdit(true);
@@ -342,11 +342,11 @@ export function SettingsScreen() {
 
   const confirmDeleteModel = (model: Model) => {
     Alert.alert(
-      "删除模型",
-      `删除「${model.name}」（${model.modelId}）？默认模型指向它时会一并清空这个选择，供应商本身保留。`,
+      "Delete model",
+      `Delete "${model.name}" (${model.modelId})? If it is the default model, that choice is cleared too; the provider itself is kept.`,
       [
-        { text: "取消", style: "cancel" },
-        { text: "删除", style: "destructive", onPress: () => void removeModel(model) },
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => void removeModel(model) },
       ],
     );
   };
@@ -366,7 +366,7 @@ export function SettingsScreen() {
   if (!activeCategory) {
     return (
       <Screen scroll>
-        <Header title="设置" />
+        <Header title="Settings" />
         <View style={styles.categoryList}>
           {settingsCategories.map((category) => (
             <Pressable
@@ -389,10 +389,10 @@ export function SettingsScreen() {
 
   return (
     <Screen scroll>
-      <Header title="模型与供应商" onBack={() => setActiveCategory(null)} />
+      <Header title="Models & providers" onBack={() => setActiveCategory(null)} />
       {error ? <View style={styles.errorWrap}><ErrorNotice message={error} onRetry={() => void load()} /></View> : null}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>供应商</Text>
+        <Text style={styles.sectionTitle}>Providers</Text>
         <View style={styles.segmented}>
           {(["openai-compatible", "google-genai", "anthropic"] as ProviderType[]).map((type) => (
             <Pressable key={type} onPress={() => chooseType(type)} style={[styles.segment, providerType === type && styles.segmentActive]}>
@@ -402,11 +402,11 @@ export function SettingsScreen() {
             </Pressable>
           ))}
         </View>
-        <Field label="显示名称" value={providerName} onChangeText={setProviderName} />
+        <Field label="Display name" value={providerName} onChangeText={setProviderName} />
         <Field label="Base URL" value={baseUrl} onChangeText={setBaseUrl} autoCapitalize="none" keyboardType="url" />
         {providerType === "openai-compatible" ? (
           <>
-            <Text style={styles.fieldLabel}>接口</Text>
+            <Text style={styles.fieldLabel}>API mode</Text>
             <View style={styles.segmented}>
               {OPENAI_API_MODES.map((mode) => (
                 <Pressable key={mode.id} onPress={() => setApiMode(mode.id)} style={[styles.segment, apiMode === mode.id && styles.segmentActive]}>
@@ -415,12 +415,12 @@ export function SettingsScreen() {
               ))}
             </View>
             <Text style={styles.fieldHint}>
-              {OPENAI_API_MODES.find((mode) => mode.id === apiMode)?.hint}；中转站大多只实现旧接口，选错会直接报 404。
+              {OPENAI_API_MODES.find((mode) => mode.id === apiMode)?.hint}. Most relays only implement the old API; choosing wrongly returns a 404.
             </Text>
           </>
         ) : null}
         <Field label="API Key" value={apiKey} onChangeText={setApiKey} autoCapitalize="none" secureTextEntry />
-        <Button label="保存供应商" onPress={() => void addProvider()} disabled={!providerName.trim() || !baseUrl.trim() || !apiKey.trim()} loading={saving} />
+        <Button label="Save provider" onPress={() => void addProvider()} disabled={!providerName.trim() || !baseUrl.trim() || !apiKey.trim()} loading={saving} />
       </View>
 
       {providers.map((provider) => (
@@ -437,7 +437,7 @@ export function SettingsScreen() {
             </View>
             <View style={styles.providerActions}>
               <Pressable
-                accessibilityLabel="获取模型列表"
+                accessibilityLabel="Fetch model list"
                 disabled={fetchingProviderId !== null}
                 onPress={() => void fetchRemoteModels(provider)}
                 style={styles.fetchButton}
@@ -445,32 +445,32 @@ export function SettingsScreen() {
                 {fetchingProviderId === provider.id
                   ? <ActivityIndicator size="small" color={colors.primary} />
                   : <Ionicons name="cloud-download-outline" size={18} color={colors.primary} />}
-                <Text style={styles.fetchButtonText}>获取模型</Text>
+                <Text style={styles.fetchButtonText}>Fetch models</Text>
               </Pressable>
-              <Pressable accessibilityLabel="编辑供应商" onPress={() => openProviderEdit(provider)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Edit provider" onPress={() => openProviderEdit(provider)} style={styles.iconButton}>
                 <Ionicons name="create-outline" size={20} color={colors.text} />
               </Pressable>
-              <Pressable accessibilityLabel="删除供应商" onPress={() => {
-                Alert.alert("删除供应商", `删除 ${provider.name} 及其全部模型？`, [
-                  { text: "取消", style: "cancel" },
-                  { text: "删除", style: "destructive", onPress: () => void removeProvider(provider) },
+              <Pressable accessibilityLabel="Delete provider" onPress={() => {
+                Alert.alert("Delete provider", `Delete ${provider.name} and all its models?`, [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Delete", style: "destructive", onPress: () => void removeProvider(provider) },
                 ]);
               }} style={styles.iconButton}><Ionicons name="trash-outline" size={20} color={colors.danger} /></Pressable>
             </View>
           </View>
           {(modelsByProvider.get(provider.id) ?? []).map((model) => (
             <View key={model.id} style={styles.modelRow}>
-              <Pressable accessibilityLabel={`把 ${model.name} 设为默认模型`} onPress={() => void selectModel(model)} style={styles.modelSelect}>
+              <Pressable accessibilityLabel={`Set ${model.name} as the default model`} onPress={() => void selectModel(model)} style={styles.modelSelect}>
                 <Ionicons name={activeModelId === model.id ? "radio-button-on" : "radio-button-off"} size={20} color={activeModelId === model.id ? colors.primary : colors.textMuted} />
                 <View style={styles.modelText}>
                   <Text style={styles.modelName}>{model.name}</Text>
-                  <Text style={styles.modelId}>{model.modelId} · 温度 {model.temperature} · 输出上限 {model.maxTokens}</Text>
+                  <Text style={styles.modelId}>{model.modelId} · temperature {model.temperature} · max output {model.maxTokens}</Text>
                 </View>
               </Pressable>
-              <Pressable accessibilityLabel={`编辑 ${model.name}`} onPress={() => openModelEdit(model)} style={styles.modelIconAction}>
+              <Pressable accessibilityLabel={`Edit ${model.name}`} onPress={() => openModelEdit(model)} style={styles.modelIconAction}>
                 <Ionicons name="options-outline" size={19} color={colors.textMuted} />
               </Pressable>
-              <Pressable accessibilityLabel={`删除 ${model.name}`} onPress={() => confirmDeleteModel(model)} style={styles.modelIconAction}>
+              <Pressable accessibilityLabel={`Delete ${model.name}`} onPress={() => confirmDeleteModel(model)} style={styles.modelIconAction}>
                 <Ionicons name="trash-outline" size={19} color={colors.danger} />
               </Pressable>
             </View>
@@ -479,7 +479,7 @@ export function SettingsScreen() {
       ))}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>添加模型</Text>
+        <Text style={styles.sectionTitle}>Add a model</Text>
         <View style={styles.providerChoices}>
           {providers.map((provider) => (
             <Pressable key={provider.id} onPress={() => setSelectedProviderId(provider.id)} style={[styles.choice, selectedProviderId === provider.id && styles.choiceActive]}>
@@ -487,12 +487,12 @@ export function SettingsScreen() {
             </Pressable>
           ))}
         </View>
-        <Field label="模型名称" value={modelName} onChangeText={setModelName} placeholder="Gemini 2.5 Pro" />
-        <Field label="模型 ID" value={modelId} onChangeText={setModelId} autoCapitalize="none" placeholder="gemini-2.5-pro" />
-        <Field label="温度" value={temperature} onChangeText={setTemperature} keyboardType="decimal-pad" />
-        <Field label="最大输出 Token 数" value={maxTokens} onChangeText={setMaxTokens} keyboardType="number-pad" />
-        <Text style={styles.fieldHint}>单次回复长度，不是上下文窗口；1M 上下文模型保持 {DEFAULT_MAX_OUTPUT_TOKENS} 或按需填写，最高 {MAX_CONFIGURED_OUTPUT_TOKENS}。</Text>
-        <Button label="添加模型" onPress={() => void addModel()} disabled={!selectedProviderId || !modelName.trim() || !modelId.trim()} loading={savingModel} />
+        <Field label="Model name" value={modelName} onChangeText={setModelName} placeholder="Gemini 2.5 Pro" />
+        <Field label="Model ID" value={modelId} onChangeText={setModelId} autoCapitalize="none" placeholder="gemini-2.5-pro" />
+        <Field label="Temperature" value={temperature} onChangeText={setTemperature} keyboardType="decimal-pad" />
+        <Field label="Max output tokens" value={maxTokens} onChangeText={setMaxTokens} keyboardType="number-pad" />
+        <Text style={styles.fieldHint}>A single reply length, not a context window; for a 1M-context model keep {DEFAULT_MAX_OUTPUT_TOKENS} or set as needed, up to {MAX_CONFIGURED_OUTPUT_TOKENS}.</Text>
+        <Button label="Add model" onPress={() => void addModel()} disabled={!selectedProviderId || !modelName.trim() || !modelId.trim()} loading={savingModel} />
       </View>
 
       <Modal
@@ -505,28 +505,28 @@ export function SettingsScreen() {
           <View style={styles.modelSheet}>
             <View style={styles.sheetHeader}>
               <View style={styles.providerInfo}>
-                <Text style={styles.sectionTitle}>选择模型</Text>
+                <Text style={styles.sectionTitle}>Choose a model</Text>
                 <Text style={styles.providerUrl}>
                   {modelFilter.trim()
-                    ? `${filteredRemoteModels.length} / ${remoteModels.length} 个模型`
-                    : `${remoteModels.length} 个可用模型 · 点一下即添加`}
+                    ? `${filteredRemoteModels.length} / ${remoteModels.length} models`
+                    : `${remoteModels.length} models available · tap one to add`}
                 </Text>
               </View>
-              <Pressable accessibilityLabel="关闭模型列表" onPress={() => setModelPickerProvider(null)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close model list" onPress={() => setModelPickerProvider(null)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
             <View style={styles.modelFilterWrap}>
               <Field
-                label="查找模型"
+                label="Find a model"
                 value={modelFilter}
                 onChangeText={setModelFilter}
-                placeholder="输入名称或模型 ID 的一部分"
+                placeholder="Enter part of the name or model ID"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
               <Text style={styles.fieldHint}>
-                点一条就加进该供应商，窗口不会关，可以连续添加；参数取“添加模型”里的温度与最大输出 Token，需要单独调再加完点模型行的设置图标。
+                Tap one to add it to this provider; the sheet stays open so you can add several. Parameters come from the temperature and max output tokens in Add a model; to tweak one, tap the settings icon on the model row after adding.
               </Text>
             </View>
             <FlatList
@@ -536,7 +536,7 @@ export function SettingsScreen() {
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={(
                 <Text style={styles.modelFilterEmpty}>
-                  {remoteModels.length ? `没有匹配“${modelFilter.trim()}”的模型` : "还没有获取到模型列表"}
+                  {remoteModels.length ? `No model matches "${modelFilter.trim()}"` : "No model list fetched yet"}
                 </Text>
               )}
               renderItem={({ item }) => {
@@ -555,7 +555,7 @@ export function SettingsScreen() {
                     {adding
                       ? <ActivityIndicator size="small" color={colors.primary} />
                       : added
-                        ? <Text style={styles.addedTag}>已添加</Text>
+                        ? <Text style={styles.addedTag}>Added</Text>
                         : <Ionicons name="add-circle-outline" size={22} color={colors.primary} />}
                   </Pressable>
                 );
@@ -570,21 +570,21 @@ export function SettingsScreen() {
           <View style={styles.modelSheet}>
             <View style={styles.sheetHeader}>
               <View style={styles.providerInfo}>
-                <Text style={styles.sectionTitle}>编辑供应商</Text>
+                <Text style={styles.sectionTitle}>Edit provider</Text>
                 <Text style={styles.providerUrl}>
-                  {editingProvider?.type === "openai-compatible" ? "OpenAI 兼容" : editingProvider?.type === "google-genai" ? "Google Gemini" : "Anthropic"}；类型不可改，需要别的类型请新建供应商。
+                  {editingProvider?.type === "openai-compatible" ? "OpenAI-compatible" : editingProvider?.type === "google-genai" ? "Google Gemini" : "Anthropic"}. The type cannot be changed; create another provider if you need a different type.
                 </Text>
               </View>
-              <Pressable accessibilityLabel="关闭编辑供应商" onPress={() => setEditingProvider(null)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close provider editor" onPress={() => setEditingProvider(null)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
             <ScrollView style={styles.editSheetScroll} contentContainerStyle={styles.editSheetBody} keyboardShouldPersistTaps="handled">
-              <Field label="显示名称" value={editProviderName} onChangeText={setEditProviderName} />
+              <Field label="Display name" value={editProviderName} onChangeText={setEditProviderName} />
               <Field label="Base URL" value={editProviderUrl} onChangeText={setEditProviderUrl} autoCapitalize="none" keyboardType="url" />
               {editingProvider?.type === "openai-compatible" ? (
                 <>
-                  <Text style={styles.fieldLabel}>接口</Text>
+                  <Text style={styles.fieldLabel}>API mode</Text>
                   <View style={styles.segmented}>
                     {OPENAI_API_MODES.map((mode) => (
                       <Pressable
@@ -597,12 +597,12 @@ export function SettingsScreen() {
                     ))}
                   </View>
                   <Text style={styles.fieldHint}>
-                    {OPENAI_API_MODES.find((mode) => mode.id === editProviderApiMode)?.hint}；中转站大多只实现旧接口，选错会直接报 404。
+                    {OPENAI_API_MODES.find((mode) => mode.id === editProviderApiMode)?.hint}. Most relays only implement the old API; choosing wrongly returns a 404.
                   </Text>
                 </>
               ) : null}
-              <Field label="API Key（留空保持原值）" value={editProviderKey} onChangeText={setEditProviderKey} autoCapitalize="none" secureTextEntry placeholder="不修改就留空" />
-              <Button label="保存修改" onPress={() => void saveProviderEdit()} disabled={!editProviderName.trim() || !editProviderUrl.trim()} loading={savingProviderEdit} />
+              <Field label="API key (leave blank to keep the current one)" value={editProviderKey} onChangeText={setEditProviderKey} autoCapitalize="none" secureTextEntry placeholder="Leave blank to keep unchanged" />
+              <Button label="Save changes" onPress={() => void saveProviderEdit()} disabled={!editProviderName.trim() || !editProviderUrl.trim()} loading={savingProviderEdit} />
             </ScrollView>
           </View>
         </SheetBackdrop>
@@ -613,19 +613,19 @@ export function SettingsScreen() {
           <View style={styles.modelSheet}>
             <View style={styles.sheetHeader}>
               <View style={styles.providerInfo}>
-                <Text style={styles.sectionTitle}>编辑模型</Text>
+                <Text style={styles.sectionTitle}>Edit model</Text>
                 <Text style={styles.providerUrl} numberOfLines={1}>{editingModel?.modelId}</Text>
               </View>
-              <Pressable accessibilityLabel="关闭编辑模型" onPress={() => setEditingModel(null)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close model editor" onPress={() => setEditingModel(null)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
             <ScrollView style={styles.editSheetScroll} contentContainerStyle={styles.editSheetBody} keyboardShouldPersistTaps="handled">
-              <Field label="模型名称" value={editModelName} onChangeText={setEditModelName} />
-              <Field label="温度" value={editModelTemperature} onChangeText={setEditModelTemperature} keyboardType="decimal-pad" />
-              <Field label="最大输出 Token 数" value={editModelMaxTokens} onChangeText={setEditModelMaxTokens} keyboardType="number-pad" />
-              <Text style={styles.fieldHint}>模型 ID 不可改；单次回复长度上限、不是上下文窗口，最高 {MAX_CONFIGURED_OUTPUT_TOKENS}。</Text>
-              <Button label="保存修改" onPress={() => void saveModelEdit()} disabled={!editModelName.trim()} loading={savingModelEdit} />
+              <Field label="Model name" value={editModelName} onChangeText={setEditModelName} />
+              <Field label="Temperature" value={editModelTemperature} onChangeText={setEditModelTemperature} keyboardType="decimal-pad" />
+              <Field label="Max output tokens" value={editModelMaxTokens} onChangeText={setEditModelMaxTokens} keyboardType="number-pad" />
+              <Text style={styles.fieldHint}>The model ID cannot be changed; this is a single-reply length limit, not a context window, up to {MAX_CONFIGURED_OUTPUT_TOKENS}.</Text>
+              <Button label="Save changes" onPress={() => void saveModelEdit()} disabled={!editModelName.trim()} loading={savingModelEdit} />
             </ScrollView>
           </View>
         </SheetBackdrop>

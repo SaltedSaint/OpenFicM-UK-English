@@ -104,7 +104,7 @@ class Sha256 {
 }
 
 export async function sha256File(file: File, onProgress?: (bytesRead: number, totalBytes: number) => void): Promise<string> {
-  if (!file.exists) throw new Error("要校验的文件不存在");
+  if (!file.exists) throw new Error("The file to verify does not exist");
   const handle = file.open(FileMode.ReadOnly);
   const hash = new Sha256();
   const total = handle.size ?? file.size;
@@ -121,6 +121,6 @@ export async function sha256File(file: File, onProgress?: (bytesRead: number, to
   } finally {
     handle.close();
   }
-  if (completed !== total) throw new Error(`文件读取不完整：${completed}/${total}`);
+  if (completed !== total) throw new Error(`File read incomplete: ${completed}/${total}`);
   return hash.digestHex();
 }

@@ -66,16 +66,16 @@ export function ProjectsScreen() {
   };
 
   const confirmDelete = (project: Project) => {
-    Alert.alert("删除作品", `确定删除《${project.title}》及全部本地数据？此操作不可恢复。`, [
-      { text: "取消", style: "cancel" },
+    Alert.alert("Delete project", `Delete "${project.title}" and all its local data? This cannot be undone.`, [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "先备份再删除",
+        text: "Back up, then delete",
         onPress: () => {
           void exportBackup().catch((backupError) => setError(backupError instanceof Error ? backupError.message : String(backupError)));
         },
       },
       {
-        text: "直接删除",
+        text: "Delete",
         style: "destructive",
         onPress: () => {
           void deleteProject(project.id)
@@ -94,7 +94,7 @@ export function ProjectsScreen() {
       <Header
         title="OpenFicM"
         action={
-          <Pressable accessibilityLabel="新建作品" onPress={() => setShowCreate(true)} style={styles.iconButton}>
+          <Pressable accessibilityLabel="New project" onPress={() => setShowCreate(true)} style={styles.iconButton}>
             <Ionicons name="add" size={26} color={colors.primary} />
           </Pressable>
         }
@@ -113,7 +113,7 @@ export function ProjectsScreen() {
                 style={[styles.quickAction, !currentProjectId && styles.quickActionDisabled]}
               >
                 <Ionicons name="people-outline" size={22} color={currentProjectId ? colors.primary : colors.textMuted} />
-                <Text style={styles.quickActionText}>角色</Text>
+                <Text style={styles.quickActionText}>Characters</Text>
               </Pressable>
               <Pressable
                 disabled={!currentProjectId}
@@ -121,7 +121,7 @@ export function ProjectsScreen() {
                 style={[styles.quickAction, !currentProjectId && styles.quickActionDisabled]}
               >
                 <Ionicons name="globe-outline" size={22} color={currentProjectId ? colors.primary : colors.textMuted} />
-                <Text style={styles.quickActionText}>世界书</Text>
+                <Text style={styles.quickActionText}>World book</Text>
               </Pressable>
               <Pressable
                 disabled={!currentProjectId}
@@ -129,28 +129,28 @@ export function ProjectsScreen() {
                 style={[styles.quickAction, !currentProjectId && styles.quickActionDisabled]}
               >
                 <Ionicons name="reader-outline" size={22} color={currentProjectId ? colors.primary : colors.textMuted} />
-                <Text style={styles.quickActionText}>笔记</Text>
+                <Text style={styles.quickActionText}>Notes</Text>
               </Pressable>
               <Pressable
                 onPress={() => rootNavigation.navigate("StyleLibrary")}
                 style={styles.quickAction}
               >
                 <Ionicons name="color-wand-outline" size={22} color={colors.primary} />
-                <Text style={styles.quickActionText}>文风库</Text>
+                <Text style={styles.quickActionText}>Style library</Text>
               </Pressable>
             </View>
             {error ? <View style={styles.errorWrap}><ErrorNotice message={error} onRetry={() => void loadProjects()} /></View> : null}
           </View>
         }
-        ListEmptyComponent={loading ? <ActivityIndicator color={colors.primary} /> : <EmptyState title="还没有作品" action={<Button label="新建作品" onPress={() => setShowCreate(true)} />} />}
+        ListEmptyComponent={loading ? <ActivityIndicator color={colors.primary} /> : <EmptyState title="No projects yet" action={<Button label="New project" onPress={() => setShowCreate(true)} />} />}
         renderItem={({ item }) => (
           <Pressable onPress={() => openProject(item)} onLongPress={() => confirmDelete(item)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
             <View style={styles.cover}><Text style={styles.coverText}>{item.title.slice(0, 1)}</Text></View>
             <View style={styles.rowText}>
               <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-              <Text style={styles.description} numberOfLines={2}>{item.description || "暂无简介"}</Text>
+              <Text style={styles.description} numberOfLines={2}>{item.description || "No synopsis yet"}</Text>
             </View>
-            <Pressable accessibilityLabel="删除作品" onPress={(event) => { event.stopPropagation(); confirmDelete(item); }} hitSlop={8} style={styles.rowAction}>
+            <Pressable accessibilityLabel="Delete project" onPress={(event) => { event.stopPropagation(); confirmDelete(item); }} hitSlop={8} style={styles.rowAction}>
               <Ionicons name="ellipsis-horizontal" size={20} color={colors.textMuted} />
             </Pressable>
           </Pressable>
@@ -160,12 +160,12 @@ export function ProjectsScreen() {
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <KeyboardAvoidingView style={styles.modalBackdrop} behavior="height" automaticOffset>
           <View style={styles.modalBody}>
-            <Text style={styles.modalTitle}>新建作品</Text>
-            <Field label="书名" value={title} onChangeText={setTitle} autoFocus />
-            <Field label="简介" value={description} onChangeText={setDescription} multiline />
+            <Text style={styles.modalTitle}>New project</Text>
+            <Field label="Title" value={title} onChangeText={setTitle} autoFocus />
+            <Field label="Synopsis" value={description} onChangeText={setDescription} multiline />
             <View style={styles.modalActions}>
-              <Button label="取消" variant="secondary" onPress={() => setShowCreate(false)} />
-              <Button label="创建" onPress={() => void submit()} disabled={!title.trim()} loading={saving} />
+              <Button label="Cancel" variant="secondary" onPress={() => setShowCreate(false)} />
+              <Button label="Create" onPress={() => void submit()} disabled={!title.trim()} loading={saving} />
             </View>
           </View>
         </KeyboardAvoidingView>

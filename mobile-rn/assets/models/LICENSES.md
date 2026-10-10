@@ -2,12 +2,12 @@
 
 The Android package does not include these GGUF models. On first launch, OpenFicM downloads them from Hugging Face into the app-private document directory and verifies the recorded size and SHA-256 before use:
 
-- `bge-small-zh-v1.5-q4_k_m.gguf`
-  - Source: `CompendiumLabs/bge-small-zh-v1.5-gguf`
-  - Base model: `BAAI/bge-small-zh-v1.5`
+- `bge-small-en-v1.5-q4_k_m.gguf`
+  - Source: `CompendiumLabs/bge-small-en-v1.5-gguf`
+  - Base model: `BAAI/bge-small-en-v1.5`
   - License: MIT
-  - Size: `15,448,256` bytes
-  - SHA-256: `0c17cc6ed7ec697db6768c2db6dd22c4e816a12c68ed14ff4d764927338532f8`
+  - Size: `24,808,576` bytes
+  - SHA-256: `363a0a4855dff6c653e06efe3209157debcf7f74e52d0d7c71e2747cd523043e`
 - `bge-reranker-base-q4_k_m.gguf`
   - Source: `sabafallah/bge-reranker-base-Q4_K_M-GGUF`
   - Base model: `BAAI/bge-reranker-base`

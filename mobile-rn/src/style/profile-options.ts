@@ -47,17 +47,17 @@ function sourceFormatLabel(source: StyleSource): string {
 
 export function describeStyleProfileOption(option: StyleProfileOption): StyleProfileDescription {
   const { profile, source, coverage } = option;
-  const unitName = coverage?.unitKind === "segment" ? "段" : "章";
+  const unitName = coverage?.unitKind === "segment" ? "segment" : "chapter";
   const meta = profile.kind === "reference"
     ? [
-      "参考小说文风",
-      source ? `${sourceFormatLabel(source)} · ${source.characterCount.toLocaleString()} 字` : "参考书已删除",
-      coverage ? `第 ${coverage.rounds} 轮 · 覆盖 ${coverage.coveredUntil}/${coverage.totalUnits} ${unitName}` : "尚未开始蒸馏",
+      "Reference-novel style",
+      source ? `${sourceFormatLabel(source)} · ${source.characterCount.toLocaleString()} chars` : "Reference book deleted",
+      coverage ? `Round ${coverage.rounds} · covered ${coverage.coveredUntil}/${coverage.totalUnits} ${unitName}` : "Distillation not started",
     ].join(" · ")
-    : `作者文风 · 第 ${profile.version} 版`;
+    : `Author style · version ${profile.version}`;
   return {
     title: styleProfileLabel(profile),
     meta,
-    preview: profile.guide.replace(/\s+/g, " ").trim().slice(0, 96) || "（这份文风还没有内容）",
+    preview: profile.guide.replace(/\s+/g, " ").trim().slice(0, 96) || "(this style has no content yet)",
   };
 }

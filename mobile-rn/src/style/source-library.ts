@@ -86,7 +86,7 @@ function formatForExtension(extension: string): StyleSourceFormat {
   if (extension === "txt") return "txt";
   if (extension === "md" || extension === "markdown") return "markdown";
   if (extension === "epub") return "epub";
-  throw new Error("仅支持 TXT、Markdown 和 EPUB 文件");
+  throw new Error("Only TXT, Markdown and EPUB files are supported");
 }
 
 function decodeText(bytes: Uint8Array): string {
@@ -191,22 +191,22 @@ function extractEpub(bytes: Uint8Array): { title: string | null; text: string; s
       const textEntry = normalizedName === "meta-inf/container.xml"
         || /\.(opf|xhtml|html|htm|xml|ncx)$/.test(normalizedName);
       if (!textEntry) return false;
-      if (entry.originalSize > MAX_EPUB_TEXT_ENTRY_BYTES) throw new Error("EPUB 单个文本条目超过 4 MB 限制");
+      if (entry.originalSize > MAX_EPUB_TEXT_ENTRY_BYTES) throw new Error("An EPUB text entry exceeds the 4 MB limit");
       totalTextBytes += entry.originalSize;
-      if (totalTextBytes > MAX_EPUB_TOTAL_TEXT_BYTES) throw new Error("EPUB 解压后的文本超过 20 MB 限制");
+      if (totalTextBytes > MAX_EPUB_TOTAL_TEXT_BYTES) throw new Error("EPUB extracted text exceeds the 20 MB limit");
       return true;
     },
   });
   const containerBytes = findArchiveEntry(entries, "META-INF/container.xml");
-  if (!containerBytes) throw new Error("EPUB 缺少 META-INF/container.xml");
+  if (!containerBytes) throw new Error("EPUB is missing META-INF/container.xml");
   const container = xmlParser.parse(decodeText(containerBytes)) as {
     container?: { rootfiles?: { rootfile?: { "full-path"?: string } | Array<{ "full-path"?: string }> } };
   };
   const rootfile = asArray(container.container?.rootfiles?.rootfile)[0];
   const packagePath = rootfile?.["full-path"];
-  if (!packagePath) throw new Error("EPUB 没有声明内容包");
+  if (!packagePath) throw new Error("EPUB does not declare a content package");
   const packageBytes = findArchiveEntry(entries, packagePath);
-  if (!packageBytes) throw new Error("EPUB 内容包不存在");
+  if (!packageBytes) throw new Error("EPUB content package not found");
   const packageDocument = xmlParser.parse(decodeText(packageBytes)) as {
     package?: {
       metadata?: { title?: string | string[] };
@@ -215,7 +215,7 @@ function extractEpub(bytes: Uint8Array): { title: string | null; text: string; s
     };
   };
   const packageRoot = packageDocument.package;
-  if (!packageRoot) throw new Error("EPUB 内容包格式无效");
+  if (!packageRoot) throw new Error("Invalid EPUB content package format");
   const basePath = packagePath.includes("/") ? packagePath.slice(0, packagePath.lastIndexOf("/")) : "";
   const manifest = new Map(
     asArray(packageRoot.manifest?.item)
@@ -240,17 +240,17 @@ function extractEpub(bytes: Uint8Array): { title: string | null; text: string; s
     const section = extractMarkupText(decodeText(entry));
     if (section) sections.push(section);
     if (sections.reduce((total, value) => total + value.length, 0) > MAX_EXTRACTED_CHARACTERS) {
-      throw new Error("EPUB 提取后的正文超过 800 万字符限制");
+      throw new Error("EPUB extracted text exceeds the 8,000,000-character limit");
     }
   }
   const text = normalizeText(sections.join("\n\n"));
-  if (!text) throw new Error("EPUB 书脊中没有可读取的正文");
+  if (!text) throw new Error("No readable text in the EPUB spine");
   const titleValue = asArray(packageRoot.metadata?.title)[0];
   return { title: typeof titleValue === "string" ? normalizeText(titleValue) : null, text, skippedSections };
 }
 
 function sourceTitle(fileName: string): string {
-  return fileName.replace(/\.[^.]+$/, "").trim() || "未命名参考书";
+  return fileName.replace(/\.[^.]+$/, "").trim() || "Untitled reference book";
 }
 
 export async function importStyleSource(): Promise<StyleSource | null> {
@@ -264,18 +264,18 @@ export async function importStyleSource(): Promise<StyleSource | null> {
   const format = formatForExtension(extensionOf(asset.name));
   const inputFile = new File(asset.uri);
   const sizeBytes = asset.size ?? inputFile.size;
-  if (!sizeBytes || sizeBytes > MAX_IMPORT_BYTES) throw new Error("参考书文件必须小于 50 MB");
+  if (!sizeBytes || sizeBytes > MAX_IMPORT_BYTES) throw new Error("The reference book file must be under 50 MB");
   const contentHash = await sha256File(inputFile);
   const duplicate = await findStyleSourceByHash(contentHash);
-  if (duplicate) throw new Error(`《${duplicate.title}》已在参考书库中`);
+  if (duplicate) throw new Error(`"${duplicate.title}" is already in the reference book library`);
   const bytes = await inputFile.bytes();
   const extracted = format === "epub"
     ? extractEpub(bytes)
     : { title: null, text: normalizeText(decodeText(bytes)), skippedSections: 0 };
-  if (!extracted.text) throw new Error("文件中没有可读取的正文");
-  if (extracted.text.length > MAX_EXTRACTED_CHARACTERS) throw new Error("正文超过 800 万字符限制");
+  if (!extracted.text) throw new Error("No readable text in the file");
+  if (extracted.text.length > MAX_EXTRACTED_CHARACTERS) throw new Error("Text exceeds the 8,000,000-character limit");
   if (extracted.skippedSections > 0) {
-    throw new Error(`EPUB 有 ${extracted.skippedSections} 个章节无法解析（清单与书脊不一致），为避免得到缺章的参考书，已取消导入`);
+    throw new Error(`EPUB has ${extracted.skippedSections} section(s) that cannot be parsed (manifest and spine disagree); the import was cancelled to avoid a reference book with missing chapters`);
   }
   const id = createId();
   const originalFile = new File(libraryDirectory(), `${id}.${extensionOf(asset.name)}`);
@@ -304,9 +304,9 @@ export async function importStyleSource(): Promise<StyleSource | null> {
 
 export async function readStyleSourceText(sourceId: string): Promise<string> {
   const source = await getStyleSource(sourceId);
-  if (!source) throw new Error("参考书不存在");
+  if (!source) throw new Error("Reference book not found");
   const file = contentFile(source.id);
-  if (!file.exists) throw new Error("参考书正文文件已丢失，请重新导入");
+  if (!file.exists) throw new Error("The reference book's text file is missing; import it again");
   return file.text();
 }
 
@@ -347,13 +347,13 @@ function buildBatches(
   const selected = indices
     .map((unitIndex) => ({ unitIndex, passage: passageAt(text, outline, unitIndex) }))
     .filter((item) => item.passage);
-  if (!selected.length) throw new Error("参考书中没有可分析的正文");
+  if (!selected.length) throw new Error("The reference book has no analysable text");
   const batchCount = Math.ceil(selected.length / ANALYSIS_BATCH_SIZE);
   return Array.from({ length: batchCount }, (_, batchIndex) => {
     const offset = batchIndex * ANALYSIS_BATCH_SIZE;
     const items = selected.slice(offset, offset + ANALYSIS_BATCH_SIZE);
     return {
-      label: `${describe(items[0].unitIndex)} 起的 ${items.length} 个样本`,
+      label: `${items.length} samples starting at ${describe(items[0].unitIndex)}`,
       passageCount: items.length,
       text: items
         .map((item) => `[${describe(item.unitIndex)}]\n${item.passage}`)
@@ -376,8 +376,8 @@ export async function readStyleSourceAnalysisPlan(input: {
   const text = await readStyleSourceText(input.sourceId);
   const outline = sourceOutline(text);
   const totalUnits = outline.unitStarts.length;
-  const unitName = outline.unitKind === "chapter" ? "章" : "段";
-  const describe = (unitIndex: number) => `第 ${unitIndex + 1} ${unitName}`;
+  const unitName = outline.unitKind === "chapter" ? "chapter" : "segment";
+  const describe = (unitIndex: number) => `${unitName} ${unitIndex + 1}`;
   const buildPlan = (window: StyleSampleWindow | null): StyleAnalysisPlan => {
     const indices = window
       ? Array.from({ length: window.count }, (_, index) => window.start + index)
@@ -387,7 +387,7 @@ export async function readStyleSourceAnalysisPlan(input: {
       unitKind: outline.unitKind,
       totalUnits,
       window,
-      windowLabel: window ? describeWindow(outline.unitKind, window) : "全书均匀分布",
+      windowLabel: window ? describeWindow(outline.unitKind, window) : "evenly across the whole book",
       batches,
       passageCount: batches.reduce((total, batch) => total + batch.passageCount, 0),
     };
@@ -404,7 +404,7 @@ export async function readStyleSourceAnalysisPlan(input: {
     random: input.random,
   });
   if (!window) {
-    throw new Error(`已蒸馏到全书末尾（共 ${totalUnits} ${unitName}）。如需重新扫描请点击“重新开始”。`);
+    throw new Error(`Distillation has reached the end of the book (${totalUnits} ${unitName} in total). To rescan, tap "Restart".`);
   }
   return buildPlan(window);
 }
@@ -416,7 +416,7 @@ export async function readStyleSourceSample(sourceId: string): Promise<string> {
 
 export async function deleteStyleSource(sourceId: string): Promise<void> {
   const source = await getStyleSource(sourceId);
-  if (!source) throw new Error("参考书不存在");
+  if (!source) throw new Error("Reference book not found");
   await deleteStyleSourceRecord(source.id);
   const originalFile = new File(source.fileUri);
   const normalizedFile = contentFile(source.id);

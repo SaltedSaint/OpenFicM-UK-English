@@ -65,40 +65,40 @@ export const DEFAULT_INDEX_SETTINGS: IndexSettings = {
 };
 
 export const TOOL_CATALOG = [
-  { key: "list_chapters", name: "列出章节", readonly: true },
-  { key: "read_chapter", name: "读取章节", readonly: true },
-  { key: "search_chapters", name: "全文搜索章节", readonly: true },
-  { key: "search_knowledge", name: "语义检索项目资料", readonly: true },
-  { key: "list_characters", name: "列出角色", readonly: true },
-  { key: "read_character", name: "读取角色", readonly: true },
-  { key: "list_world_entries", name: "列出世界书条目", readonly: true },
-  { key: "read_world_entry", name: "读取世界书条目", readonly: true },
-  { key: "list_notes", name: "列出笔记", readonly: true },
-  { key: "read_note", name: "读取笔记", readonly: true },
-  { key: "write_note", name: "创建笔记", readonly: false },
-  { key: "edit_note", name: "编辑笔记", readonly: false },
-  { key: "move_note", name: "移动笔记归属", readonly: false },
-  { key: "delete_note", name: "删除笔记", readonly: false },
-  { key: "ask_user", name: "向用户提问", readonly: true },
-  { key: "activate_skill", name: "激活技能", readonly: true },
-  { key: "delegate_agent", name: "委派子智能体", readonly: true },
-  { key: "read_author_style_guide", name: "读取作者文风指南", readonly: true },
-  { key: "list_style_sources", name: "列出参考书", readonly: true },
-  { key: "read_style_source_sample", name: "读取参考书样本", readonly: true },
-  { key: "list_style_profiles", name: "列出文风", readonly: true },
-  { key: "read_style_profile", name: "读取文风", readonly: true },
-  { key: "select_style_profile", name: "切换创作文风", readonly: false },
-  { key: "save_reference_style_profile", name: "保存参考文风", readonly: false },
-  { key: "write_chapter", name: "创建章节", readonly: false },
-  { key: "edit_chapter", name: "修改章节", readonly: false },
-  { key: "create_character", name: "创建角色", readonly: false },
-  { key: "edit_character", name: "修改角色", readonly: false },
-  { key: "delete_character", name: "删除角色", readonly: false },
-  { key: "create_world_entry", name: "创建世界书条目", readonly: false },
-  { key: "edit_world_entry", name: "修改世界书条目", readonly: false },
-  { key: "delete_world_entry", name: "删除世界书条目", readonly: false },
-  { key: "save_author_style_guide", name: "保存作者文风指南", readonly: false },
-  { key: "evolve_author_style", name: "进化作者文风", readonly: false },
+  { key: "list_chapters", name: "List chapters", readonly: true },
+  { key: "read_chapter", name: "Read chapter", readonly: true },
+  { key: "search_chapters", name: "Full-text search chapters", readonly: true },
+  { key: "search_knowledge", name: "Semantic search of project material", readonly: true },
+  { key: "list_characters", name: "List characters", readonly: true },
+  { key: "read_character", name: "Read character", readonly: true },
+  { key: "list_world_entries", name: "List world book entries", readonly: true },
+  { key: "read_world_entry", name: "Read world book entry", readonly: true },
+  { key: "list_notes", name: "List notes", readonly: true },
+  { key: "read_note", name: "Read note", readonly: true },
+  { key: "write_note", name: "Create note", readonly: false },
+  { key: "edit_note", name: "Edit note", readonly: false },
+  { key: "move_note", name: "Move note scope", readonly: false },
+  { key: "delete_note", name: "Delete note", readonly: false },
+  { key: "ask_user", name: "Ask the user", readonly: true },
+  { key: "activate_skill", name: "Activate skill", readonly: true },
+  { key: "delegate_agent", name: "Delegate to sub-agent", readonly: true },
+  { key: "read_author_style_guide", name: "Read author style guide", readonly: true },
+  { key: "list_style_sources", name: "List reference books", readonly: true },
+  { key: "read_style_source_sample", name: "Read reference sample", readonly: true },
+  { key: "list_style_profiles", name: "List styles", readonly: true },
+  { key: "read_style_profile", name: "Read style", readonly: true },
+  { key: "select_style_profile", name: "Switch writing style", readonly: false },
+  { key: "save_reference_style_profile", name: "Save reference style", readonly: false },
+  { key: "write_chapter", name: "Create chapter", readonly: false },
+  { key: "edit_chapter", name: "Edit chapter", readonly: false },
+  { key: "create_character", name: "Create character", readonly: false },
+  { key: "edit_character", name: "Edit character", readonly: false },
+  { key: "delete_character", name: "Delete character", readonly: false },
+  { key: "create_world_entry", name: "Create world book entry", readonly: false },
+  { key: "edit_world_entry", name: "Edit world book entry", readonly: false },
+  { key: "delete_world_entry", name: "Delete world book entry", readonly: false },
+  { key: "save_author_style_guide", name: "Save author style guide", readonly: false },
+  { key: "evolve_author_style", name: "Evolve author style", readonly: false },
 ] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -143,7 +143,7 @@ export async function getIndexSettings(): Promise<IndexSettings> {
 }
 
 export async function saveIndexSettings(settings: IndexSettings): Promise<void> {
-  if (settings.chunkOverlap >= settings.chunkSize) throw new Error("分块重叠必须小于分块大小");
+  if (settings.chunkOverlap >= settings.chunkSize) throw new Error("Chunk overlap must be smaller than chunk size");
   const chunkSize = boundedInteger(settings.chunkSize, DEFAULT_INDEX_SETTINGS.chunkSize, 120, 440);
   const chunkOverlap = boundedInteger(
     settings.chunkOverlap,
@@ -251,8 +251,8 @@ function adaptLornStyleSkill(skill: AgentSkill): AgentSkill {
   if (skill.id === "plugin-lorn-style--distillation") {
     return {
       ...skill,
-      name: "Lorn 原版参考文风蒸馏",
-      description: "读取文风书库中的参考小说样本，使用 Lorn.NovelWriteSkills 方法生成该参考书的参考文风。",
+      name: "Lorn original reference style distillation",
+      description: "Reads reference-novel samples from the style library and generates that book's reference style using the Lorn.NovelWriteSkills method.",
       instructions: compactLornDistillationInstructions(skill.instructions
         .replace(
           /原文中的 Agents\.md 注册、蒸馏产物目录和作者风格模板文件统一映射为 save_author_style_guide；最终必须把完整 Markdown 指南保存到当前作品。/g,
@@ -276,11 +276,87 @@ function adaptLornStyleSkill(skill: AgentSkill): AgentSkill {
   return skill;
 }
 
+/**
+ * English display names for the built-in catalog skills. The pinned remote catalog stores
+ * Chinese names/descriptions; instruction bodies stay untouched — only the labels shown in
+ * the UI and the system prompt are overridden here.
+ */
+const BUILTIN_SKILL_DISPLAY: Record<string, { name: string; description: string }> = {
+  "builtin-skill--character-design": {
+    name: "Character design",
+    description: "Design motivations, flaws, contrasts, functions and growth arcs for protagonists, supporting cast and villains.",
+  },
+  "builtin-skill--character-relationship": {
+    name: "Character relationships",
+    description: "Design how relationships form, change, conflict and progress while keeping interactions consistent with character states.",
+  },
+  "builtin-skill--deslop-lexicon": {
+    name: "AI-tic phrase and cliché check",
+    description: "Check for high-frequency AI clichés, explanatory tone, vague modifiers, metaphor habits and non-functional punctuation, with conservative replacement directions.",
+  },
+  "builtin-skill--deslop-writing": {
+    name: "De-templated revision",
+    description: "Systematically scan and reduce explanatory tone, clichés, mechanical uniformity and over-summarising without changing plot or characters.",
+  },
+  "builtin-skill--dialogue-design": {
+    name: "Dialogue design",
+    description: "Design subtext, power dynamics, character voices, information delivery and emotional escalation so dialogue never becomes a manual.",
+  },
+  "builtin-skill--emotional-arc": {
+    name: "Emotional arcs and tension",
+    description: "Design emotional arcs, bonds, ruptures, build-up, release and afterglow to control the reader's emotional rises and payoffs.",
+  },
+  "builtin-skill--opening-design": {
+    name: "Opening design",
+    description: "Design the entry strategy, character anchor, conflict, hook, selling points and expectation chain of the first one to three chapters.",
+  },
+  "builtin-skill--prose-format": {
+    name: "Prose formatting",
+    description: "Standardise chapters, sections, paragraphs, dialogue, punctuation and meta-information, balancing mobile reading rhythm with natural narration.",
+  },
+  "builtin-skill--reader-contract": {
+    name: "Reader contract and plot review",
+    description: "Check the core reading promise, protagonist agency, ownership of expectations, payoff exchange, endgame reserves and plot-progression risks.",
+  },
+  "builtin-skill--reversal-design": {
+    name: "Reversal design",
+    description: "Design identity, perspective, motive, timeline, information and cognition reversals, including nested reversals, misdirection, reveal pacing and full verification.",
+  },
+  "builtin-skill--short-submission": {
+    name: "Short-story submission structure",
+    description: "Design the structure of short stories intended for platform submission.",
+  },
+  "builtin-skill--story-deconstruction": {
+    name: "Story deconstruction",
+    description: "Deconstruct a novel's structure to understand how it is built.",
+  },
+  "builtin-skill--story-hooks": {
+    name: "Story hooks and suspense",
+    description: "Design story hooks and suspense to keep readers turning pages.",
+  },
+  "builtin-skill--story-quality": {
+    name: "Story quality review",
+    description: "Review a story's quality against craft and reader-experience criteria.",
+  },
+  "builtin-skill--story-state-tracking": {
+    name: "Story state tracking",
+    description: "Track story state so canon stays consistent across chapters.",
+  },
+  "builtin-skill--villain-reveal": {
+    name: "Villain and reveal design",
+    description: "Design villains and truth-reveal moments for maximum impact.",
+  },
+};
+
 export async function getAgentSkills(): Promise<AgentSkill[]> {
   const [value, openFicMCatalog, lornPackage, remotePackage] = await Promise.all([readJson("agent.skills"), getInstalledOpenFicMCatalog(), getInstalledLornStylePackage(), getInstalledOhStoryPackage()]);
   const records = Array.isArray(value) ? value.filter(isRecord) : [];
   const overrides = new Map(records.filter((item) => typeof item.id === "string").map((item) => [item.id as string, item]));
-  const managedBuiltins = (openFicMCatalog?.skills ?? []).map((skill) => ({ ...skill, source: "builtin" as const }));
+  const managedBuiltins = (openFicMCatalog?.skills ?? []).map((skill) => ({
+    ...skill,
+    ...(BUILTIN_SKILL_DISPLAY[skill.id] ?? {}),
+    source: "builtin" as const,
+  }));
   const builtinIds = new Set(managedBuiltins.map((skill) => skill.id));
   const pluginSkills = (lornPackage?.skills ?? []).map((skill) => adaptLornStyleSkill({ ...skill, source: "plugin" as const }));
   const pluginIds = new Set(pluginSkills.map((skill) => skill.id));

@@ -53,10 +53,10 @@ function MainTabs() {
           },
         })}
       >
-        <Tab.Screen name="Projects" component={ProjectsScreen} options={{ title: "书架" }} />
-        <Tab.Screen name="Writing" component={WritingScreen} options={{ title: "写作" }} />
-        <Tab.Screen name="Assistant" component={AssistantScreen} options={{ title: "助手" }} />
-        <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: "设置" }} />
+        <Tab.Screen name="Projects" component={ProjectsScreen} options={{ title: "Shelf" }} />
+        <Tab.Screen name="Writing" component={WritingScreen} options={{ title: "Writing" }} />
+        <Tab.Screen name="Assistant" component={AssistantScreen} options={{ title: "Assistant" }} />
+        <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings" }} />
     </Tab.Navigator>
   );
 }
@@ -75,7 +75,7 @@ function RuntimeResourceGate() {
   const [state, setState] = useState<RuntimeResourceState | null>(null);
   const [warmed, setWarmed] = useState(false);
   const [busy, setBusy] = useState(true);
-  const [progress, setProgress] = useState("正在检查运行资源…");
+  const [progress, setProgress] = useState("Checking runtime resources…");
   const [error, setError] = useState<string | null>(null);
 
   const checkAndWarm = useCallback(async () => {
@@ -86,16 +86,16 @@ function RuntimeResourceGate() {
       const next = await getRuntimeResourceState();
       setState(next);
       if (!next.ready) {
-        setProgress("部分运行资源尚未安装");
+        setProgress("Some runtime resources are not installed yet");
         return;
       }
-      setProgress("正在预热本地检索模型…");
+      setProgress("Warming up the local retrieval models…");
       await warmUpLocalModels();
       setWarmed(true);
-      setProgress("本地检索模型已就绪");
+      setProgress("Local retrieval models are ready");
     } catch (checkError) {
       setError(checkError instanceof Error ? checkError.message : String(checkError));
-      setProgress("运行资源检查失败");
+      setProgress("Runtime resource check failed");
     } finally {
       setBusy(false);
     }
@@ -109,7 +109,7 @@ function RuntimeResourceGate() {
     setBusy(true);
     setWarmed(false);
     setError(null);
-    setProgress("准备一键拉取运行资源…");
+    setProgress("Preparing to fetch runtime resources…");
     try {
       const next = await installMissingRuntimeResources((item) => {
         if (item.totalBytes && item.totalBytes > 0 && item.bytesWritten !== undefined) {
@@ -120,13 +120,13 @@ function RuntimeResourceGate() {
         }
       });
       setState(next);
-      setProgress("正在预热本地检索模型…");
+      setProgress("Warming up the local retrieval models…");
       await warmUpLocalModels();
       setWarmed(true);
-      setProgress("全部运行资源已就绪");
+      setProgress("All runtime resources are ready");
     } catch (downloadError) {
       setError(downloadError instanceof Error ? downloadError.message : String(downloadError));
-      setProgress("资源拉取未完成，可稍后继续");
+      setProgress("Resource fetch did not finish; you can continue later");
       const next = await getRuntimeResourceState().catch(() => null);
       if (next) setState(next);
     } finally {
@@ -139,8 +139,8 @@ function RuntimeResourceGate() {
     return (
       <View style={styles.resourceGate}>
         <StatusBar style="dark" />
-        <Text style={styles.resourceTitle}>{resourcesReady ? "预热本地检索" : "准备 OpenFicM"}</Text>
-        <Text style={styles.resourceSubtitle}>{resourcesReady ? "运行资源已完整，进入应用前需要加载嵌入和重排模型。" : "首次使用需要下载 Agent、Skill 和本地检索模型。"}</Text>
+        <Text style={styles.resourceTitle}>{resourcesReady ? "Warm up local retrieval" : "Set up OpenFicM"}</Text>
+        <Text style={styles.resourceSubtitle}>{resourcesReady ? "Runtime resources are complete; the embedding and rerank models must be loaded before entering the app." : "First use needs to download the agents, skills and local retrieval models."}</Text>
         <View style={styles.resourceList}>
           {(state?.missing ?? []).map((item) => (
             <View key={item.id} style={styles.resourceRow}>
@@ -154,10 +154,10 @@ function RuntimeResourceGate() {
         </View>
         <Text style={styles.resourceProgress}>{error ?? progress}</Text>
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => void (resourcesReady ? checkAndWarm() : download())} style={[styles.downloadButton, busy && styles.downloadButtonDisabled]}>
-          {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.downloadButtonText}>{resourcesReady ? "重新预热" : "一键拉取并预热"}</Text>}
+          {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.downloadButtonText}>{resourcesReady ? "Warm up again" : "Fetch and warm up"}</Text>}
         </Pressable>
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => void checkAndWarm()} style={styles.retryResourceButton}>
-          <Text style={styles.retryResourceText}>重新检查</Text>
+          <Text style={styles.retryResourceText}>Check again</Text>
         </Pressable>
       </View>
     );

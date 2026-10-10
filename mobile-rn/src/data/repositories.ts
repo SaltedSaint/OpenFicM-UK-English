@@ -141,25 +141,25 @@ const mapWorldInfoEntry = (row: WorldInfoEntryRow): WorldInfoEntry => ({
 
 function requiredText(value: string, label: string): string {
   const normalized = value.trim();
-  if (!normalized) throw new Error(`${label}不能为空`);
+  if (!normalized) throw new Error(`${label} cannot be empty`);
   return normalized;
 }
 
 function normalizeBaseUrl(value: string): string {
   const normalized = value.trim().replace(/\/+$/, "");
-  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) throw new Error("Base URL 必须是 http 或 https 地址");
+  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) throw new Error("Base URL must be an http or https address");
   return normalized;
 }
 
 function validateChapterContent(content: string): void {
   const lineCount = content.split(/\r?\n/).length;
   if (content.length > MAX_EDITOR_CONTENT_CHARACTERS || lineCount > MAX_EDITOR_CONTENT_LINES) {
-    throw new Error(`内容超出限制：单一章节最多 ${MAX_EDITOR_CONTENT_LINES} 行或 ${MAX_EDITOR_CONTENT_CHARACTERS} 字符`);
+    throw new Error(`Content limit exceeded: a chapter may have at most ${MAX_EDITOR_CONTENT_LINES} lines or ${MAX_EDITOR_CONTENT_CHARACTERS} characters`);
   }
 }
 
 function generatedMessageTitle(content: string): string {
-  return content.replace(/\s+/g, " ").trim().slice(0, 24) || "新对话";
+  return content.replace(/\s+/g, " ").trim().slice(0, 24) || "New chat";
 }
 
 export async function listProjects(): Promise<Project[]> {
@@ -177,7 +177,7 @@ export async function createProject(title: string, description = ""): Promise<Pr
   const db = await getDatabase();
   const id = createId();
   const now = new Date().toISOString();
-  const normalizedTitle = requiredText(title, "作品名");
+  const normalizedTitle = requiredText(title, "Project title");
   const normalizedDescription = description.trim();
   const volumeId = createId();
   const chapterId = createId();
@@ -188,15 +188,15 @@ export async function createProject(title: string, description = ""): Promise<Pr
     );
     await txn.runAsync(
       "INSERT INTO volumes(id, project_id, title, order_index) VALUES (?, ?, ?, 1)",
-      volumeId, id, "正文",
+      volumeId, id, "Body",
     );
     await txn.runAsync(
       "INSERT INTO chapters(id, project_id, volume_id, title, content, order_index, updated_at) VALUES (?, ?, ?, ?, '', 1, ?)",
-      chapterId, id, volumeId, "第一章", now,
+      chapterId, id, volumeId, "Chapter 1", now,
     );
     await txn.runAsync(
       "INSERT INTO chapter_fts(chapter_id, project_id, title, content) VALUES (?, ?, ?, '')",
-      chapterId, id, "第一章",
+      chapterId, id, "Chapter 1",
     );
   });
   return { id, title: normalizedTitle, description: normalizedDescription, createdAt: now, updatedAt: now };
@@ -245,7 +245,7 @@ export async function listVolumes(projectId: string): Promise<Volume[]> {
 export async function createVolume(projectId: string, title: string): Promise<Volume> {
   const db = await getDatabase();
   const id = createId();
-  const normalizedTitle = requiredText(title, "卷名");
+  const normalizedTitle = requiredText(title, "Volume name");
   const now = new Date().toISOString();
   let orderIndex = 1;
   await db.withExclusiveTransactionAsync(async (txn) => {
@@ -262,8 +262,8 @@ export async function createVolume(projectId: string, title: string): Promise<Vo
 export async function renameVolume(id: string, title: string): Promise<Volume> {
   const db = await getDatabase();
   const volume = await db.getFirstAsync<VolumeRow>("SELECT * FROM volumes WHERE id = ?", id);
-  if (!volume) throw new Error("卷不存在");
-  const normalizedTitle = requiredText(title, "卷名");
+  if (!volume) throw new Error("Volume not found");
+  const normalizedTitle = requiredText(title, "Volume name");
   const now = new Date().toISOString();
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync("UPDATE volumes SET title = ? WHERE id = ?", normalizedTitle, id);
@@ -277,12 +277,12 @@ export async function deleteVolume(id: string): Promise<void> {
   const now = new Date().toISOString();
   await db.withExclusiveTransactionAsync(async (txn) => {
     const volume = await txn.getFirstAsync<VolumeRow>("SELECT * FROM volumes WHERE id = ?", id);
-    if (!volume) throw new Error("卷不存在");
+    if (!volume) throw new Error("Volume not found");
     const countRow = await txn.getFirstAsync<{ volume_count: number }>(
       "SELECT COUNT(*) AS volume_count FROM volumes WHERE project_id = ?",
       volume.project_id,
     );
-    if ((countRow?.volume_count ?? 0) <= 1) throw new Error("每部作品至少需要保留一卷");
+    if ((countRow?.volume_count ?? 0) <= 1) throw new Error("Each project must keep at least one volume");
     const chapterCountRow = await txn.getFirstAsync<{ chapter_count: number }>(
       "SELECT COUNT(*) AS chapter_count FROM chapters WHERE volume_id = ?",
       id,
@@ -347,7 +347,7 @@ export async function createChapter(
   const db = await getDatabase();
   const id = createId();
   const now = new Date().toISOString();
-  const normalizedTitle = requiredText(title, "章节标题");
+  const normalizedTitle = requiredText(title, "Chapter title");
   validateChapterContent(content);
   const consistencyKey = `agent.pendingConsistency.${projectId}`;
   const consistencyValue = JSON.stringify({ chapterId: id, chapterTitle: normalizedTitle, updatedAt: now });
@@ -358,7 +358,7 @@ export async function createChapter(
       volumeId,
       projectId,
     );
-    if (!volume) throw new Error("卷不属于当前作品");
+    if (!volume) throw new Error("The volume does not belong to the current project");
     const orderRow = await txn.getFirstAsync<{ next_order: number }>(
       "SELECT COALESCE(MAX(order_index), 0) + 1 AS next_order FROM chapters WHERE volume_id = ?", volumeId,
     );
@@ -390,8 +390,8 @@ export async function saveChapter(id: string, title: string, content: string): P
   const db = await getDatabase();
   const now = new Date().toISOString();
   const chapter = await getChapter(id);
-  if (!chapter) throw new Error("章节不存在");
-  const normalizedTitle = requiredText(title, "章节标题");
+  if (!chapter) throw new Error("Chapter not found");
+  const normalizedTitle = requiredText(title, "Chapter title");
   validateChapterContent(content);
   const consistencyKey = `agent.pendingConsistency.${chapter.projectId}`;
   const consistencyValue = JSON.stringify({ chapterId: id, chapterTitle: normalizedTitle, updatedAt: now });
@@ -411,8 +411,8 @@ export async function saveChapter(id: string, title: string, content: string): P
 export async function renameChapter(id: string, title: string): Promise<Chapter> {
   const db = await getDatabase();
   const chapter = await db.getFirstAsync<ChapterRow>("SELECT * FROM chapters WHERE id = ?", id);
-  if (!chapter) throw new Error("章节不存在");
-  const normalizedTitle = requiredText(title, "章节标题");
+  if (!chapter) throw new Error("Chapter not found");
+  const normalizedTitle = requiredText(title, "Chapter title");
   const now = new Date().toISOString();
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync("UPDATE chapters SET title = ?, updated_at = ? WHERE id = ?", normalizedTitle, now, id);
@@ -440,7 +440,7 @@ export async function deleteChapter(id: string): Promise<void> {
   const now = new Date().toISOString();
   await db.withExclusiveTransactionAsync(async (txn) => {
     const chapter = await txn.getFirstAsync<ChapterRow>("SELECT * FROM chapters WHERE id = ?", id);
-    if (!chapter) throw new Error("章节不存在");
+    if (!chapter) throw new Error("Chapter not found");
     await txn.runAsync("DELETE FROM chapter_fts WHERE chapter_id = ?", id);
     await txn.runAsync("DELETE FROM vector_chunks WHERE project_id = ? AND source_type = 'chapter' AND source_id = ?", chapter.project_id, id);
     // 独占事务里外键不生效：草稿要显式删，笔记要显式上浮到卷级（chapter_id 置空、volume_id 保留）。
@@ -505,7 +505,7 @@ export async function saveProvider(input: {
 }): Promise<Provider> {
   const db = await getDatabase();
   const id = input.id ?? createId();
-  const name = requiredText(input.name, "供应商名称");
+  const name = requiredText(input.name, "Provider name");
   const baseUrl = normalizeBaseUrl(input.baseUrl);
   const apiMode = normalizeApiMode(input.type, input.apiMode);
   const apiKeyRef = `openfic.provider.${id}`;
@@ -515,7 +515,7 @@ export async function saveProvider(input: {
   const apiKey = input.apiKey.trim();
   // 编辑时留空只改名称/地址/接口，不覆盖已保存的 Key，避免"改个名字还要重新粘贴密钥"。
   const nextApiKey = apiKey || previousApiKey || "";
-  if (!nextApiKey) throw new Error("API Key 不能为空");
+  if (!nextApiKey) throw new Error("API key cannot be empty");
   if (apiKey) await SecureStore.setItemAsync(apiKeyRef, apiKey);
   try {
     await db.withExclusiveTransactionAsync(async (txn) => {
@@ -585,14 +585,14 @@ export async function listModels(providerId?: string): Promise<Model[]> {
 export async function saveModel(input: Omit<Model, "id"> & { id?: string }): Promise<Model> {
   const db = await getDatabase();
   const id = input.id ?? createId();
-  const name = requiredText(input.name, "模型名称");
-  const modelId = requiredText(input.modelId, "模型 ID");
-  if (!Number.isFinite(input.temperature) || input.temperature < 0 || input.temperature > 2) throw new Error("温度必须在 0 到 2 之间");
+  const name = requiredText(input.name, "Model name");
+  const modelId = requiredText(input.modelId, "Model ID");
+  if (!Number.isFinite(input.temperature) || input.temperature < 0 || input.temperature > 2) throw new Error("Temperature must be between 0 and 2");
   if (!Number.isInteger(input.maxTokens) || input.maxTokens < 1 || input.maxTokens > MAX_CONFIGURED_OUTPUT_TOKENS) {
-    throw new Error(`最大输出 Token 数必须在 1 到 ${MAX_CONFIGURED_OUTPUT_TOKENS} 之间；1M 通常是上下文窗口，不是单次输出上限`);
+    throw new Error(`Maximum output tokens must be between 1 and ${MAX_CONFIGURED_OUTPUT_TOKENS}; a 1M figure is usually a context window, not a per-response output limit`);
   }
   const provider = await db.getFirstAsync<{ id: string }>("SELECT id FROM providers WHERE id = ?", input.providerId);
-  if (!provider) throw new Error("供应商不存在");
+  if (!provider) throw new Error("Provider not found");
   if (!input.id) {
     // 从供应商模型列表一键添加时很容易点到重复项，这里兜住，别让同一模型在列表里出现两次。
     const duplicate = await db.getFirstAsync<{ id: string }>(
@@ -600,7 +600,7 @@ export async function saveModel(input: Omit<Model, "id"> & { id?: string }): Pro
       input.providerId,
       modelId,
     );
-    if (duplicate) throw new Error(`该供应商下已有模型 ${modelId}`);
+    if (duplicate) throw new Error(`This provider already has the model ${modelId}`);
   }
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync(`
@@ -630,16 +630,16 @@ export async function getChatSession(id: string): Promise<ChatSession | null> {
 export async function createChatSession(projectId: string, modelId: string | null = null): Promise<ChatSession> {
   const db = await getDatabase();
   const project = await db.getFirstAsync<{ id: string }>("SELECT id FROM projects WHERE id = ?", projectId);
-  if (!project) throw new Error("作品不存在");
+  if (!project) throw new Error("Project not found");
   const normalizedModelId = modelId?.trim() || null;
   if (normalizedModelId) {
     const model = await db.getFirstAsync<{ id: string }>("SELECT id FROM models WHERE id = ?", normalizedModelId);
-    if (!model) throw new Error("模型不存在");
+    if (!model) throw new Error("Model not found");
   }
   const session: ChatSession = {
     id: createId(),
     projectId,
-    title: "新对话",
+    title: "New chat",
     modelId: normalizedModelId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -658,12 +658,12 @@ export async function updateChatSession(input: {
 }): Promise<ChatSession> {
   const db = await getDatabase();
   const existing = await db.getFirstAsync<SessionRow>("SELECT * FROM chat_sessions WHERE id = ?", input.id);
-  if (!existing) throw new Error("对话不存在");
-  const title = input.title === undefined ? existing.title : requiredText(input.title, "对话标题").slice(0, 80);
+  if (!existing) throw new Error("Chat not found");
+  const title = input.title === undefined ? existing.title : requiredText(input.title, "Chat title").slice(0, 80);
   const modelId = input.modelId === undefined ? existing.model_id : input.modelId?.trim() || null;
   if (modelId) {
     const model = await db.getFirstAsync<{ id: string }>("SELECT id FROM models WHERE id = ?", modelId);
-    if (!model) throw new Error("模型不存在");
+    if (!model) throw new Error("Model not found");
   }
   const updatedAt = new Date().toISOString();
   await db.runAsync(
@@ -694,7 +694,7 @@ export async function deleteMessagesFrom(sessionId: string, messageId: string): 
       sessionId,
       messageId,
     );
-    if (!target) throw new Error("要编辑的消息不存在");
+    if (!target) throw new Error("The message to edit does not exist");
     await txn.runAsync(
       "DELETE FROM chat_messages WHERE session_id = ? AND rowid >= ?",
       sessionId,
@@ -713,18 +713,18 @@ export async function replaceUserMessageBranch(
   messageId: string,
   content: string,
 ): Promise<{ message: ChatMessage; session: ChatSession }> {
-  if (!content.trim()) throw new Error("消息内容不能为空");
+  if (!content.trim()) throw new Error("Message content cannot be empty");
   const db = await getDatabase();
   let replacement: { message: ChatMessage; session: ChatSession } | null = null;
   await db.withExclusiveTransactionAsync(async (txn) => {
     const session = await txn.getFirstAsync<SessionRow>("SELECT * FROM chat_sessions WHERE id = ?", sessionId);
-    if (!session) throw new Error("对话不存在");
+    if (!session) throw new Error("Chat not found");
     const target = await txn.getFirstAsync<{ rowid: number; role: ChatMessage["role"] }>(
       "SELECT rowid, role FROM chat_messages WHERE session_id = ? AND id = ?",
       sessionId,
       messageId,
     );
-    if (!target || target.role !== "user") throw new Error("要编辑的用户消息不存在");
+    if (!target || target.role !== "user") throw new Error("The user message to edit does not exist");
     const earlierUser = await txn.getFirstAsync<{ found: number }>(
       "SELECT 1 AS found FROM chat_messages WHERE session_id = ? AND role = 'user' AND rowid < ? LIMIT 1",
       sessionId,
@@ -761,7 +761,7 @@ export async function replaceUserMessageBranch(
       session: mapSession({ ...session, title, updated_at: createdAt }),
     };
   });
-  if (!replacement) throw new Error("消息编辑事务未完成");
+  if (!replacement) throw new Error("The message edit transaction did not complete");
   return replacement;
 }
 
@@ -771,10 +771,10 @@ export async function addMessage(
   content: string,
   metadata: ChatMessageMetadata | null = null,
 ): Promise<ChatMessage> {
-  if (!content.trim()) throw new Error("消息内容不能为空");
+  if (!content.trim()) throw new Error("Message content cannot be empty");
   const db = await getDatabase();
   const session = await db.getFirstAsync<SessionRow>("SELECT * FROM chat_sessions WHERE id = ?", sessionId);
-  if (!session) throw new Error("对话不存在");
+  if (!session) throw new Error("Chat not found");
   const createdAt = new Date().toISOString();
   const message: ChatMessage = { id: createId(), projectId: session.project_id, sessionId, role, content, metadata, createdAt };
   const generatedTitle = generatedMessageTitle(content);
@@ -785,7 +785,7 @@ export async function addMessage(
       message.id, message.projectId, message.sessionId, message.role, message.content, metadataJson, message.createdAt,
     );
     await txn.runAsync(
-      "UPDATE chat_sessions SET title = CASE WHEN title = '新对话' AND ? = 'user' THEN ? ELSE title END, updated_at = ? WHERE id = ?",
+      "UPDATE chat_sessions SET title = CASE WHEN title = 'New chat' AND ? = 'user' THEN ? ELSE title END, updated_at = ? WHERE id = ?",
       role, generatedTitle, createdAt, sessionId,
     );
   });
@@ -848,7 +848,7 @@ export async function saveCharacter(input: {
 }): Promise<Character> {
   const db = await getDatabase();
   const id = input.id ?? createId();
-  const name = requiredText(input.name, "角色名称");
+  const name = requiredText(input.name, "Character name");
   const description = input.description?.trim() ?? "";
   validateChapterContent(description);
   const now = new Date().toISOString();
@@ -876,7 +876,7 @@ export async function deleteCharacter(id: string): Promise<void> {
   const now = new Date().toISOString();
   await db.withExclusiveTransactionAsync(async (txn) => {
     const character = await txn.getFirstAsync<CharacterRow>("SELECT * FROM characters WHERE id = ?", id);
-    if (!character) throw new Error("角色不存在");
+    if (!character) throw new Error("Character not found");
     await txn.runAsync(
       "DELETE FROM vector_chunks WHERE project_id = ? AND source_type = 'character' AND source_id = ?",
       character.project_id,
@@ -897,11 +897,11 @@ export async function getOrCreateWorldInfo(projectId: string): Promise<WorldInfo
     "INSERT INTO world_info(id, project_id, name, description, created_at, updated_at) VALUES (?, ?, ?, '', ?, ?)",
     id,
     projectId,
-    "世界书",
+    "World book",
     now,
     now,
   );
-  return { id, projectId, name: "世界书", description: "", createdAt: now, updatedAt: now };
+  return { id, projectId, name: "World book", description: "", createdAt: now, updatedAt: now };
 }
 
 export async function saveWorldInfo(input: {
@@ -912,8 +912,8 @@ export async function saveWorldInfo(input: {
 }): Promise<WorldInfo> {
   const db = await getDatabase();
   const existing = await db.getFirstAsync<WorldInfoRow>("SELECT * FROM world_info WHERE id = ? AND project_id = ?", input.id, input.projectId);
-  if (!existing) throw new Error("世界书不存在");
-  const name = requiredText(input.name, "世界书名称");
+  if (!existing) throw new Error("World book not found");
+  const name = requiredText(input.name, "World book name");
   const description = input.description?.trim() ?? "";
   const now = new Date().toISOString();
   await db.runAsync(
@@ -950,7 +950,7 @@ export async function saveWorldInfoEntry(input: {
 }): Promise<WorldInfoEntry> {
   const db = await getDatabase();
   const id = input.id ?? createId();
-  const name = requiredText(input.name, "世界书条目名称");
+  const name = requiredText(input.name, "World book entry name");
   const content = input.content?.trim() ?? "";
   validateChapterContent(content);
   const now = new Date().toISOString();
@@ -995,7 +995,7 @@ export async function deleteWorldInfoEntry(id: string): Promise<void> {
       JOIN world_info world ON world.id = entry.world_info_id
       WHERE entry.id = ?
     `, id);
-    if (!entry) throw new Error("世界书条目不存在");
+    if (!entry) throw new Error("World book entry not found");
     await txn.runAsync(
       "DELETE FROM vector_chunks WHERE project_id = ? AND source_type = 'world-entry' AND source_id = ?",
       entry.project_id,

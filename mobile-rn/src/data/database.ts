@@ -22,7 +22,7 @@ async function migrateChatSessions(database: SQLite.SQLiteDatabase): Promise<voi
         );
 
         INSERT OR IGNORE INTO chat_sessions(id, project_id, title, model_id, created_at, updated_at)
-        SELECT 'legacy-' || project_id, project_id, '历史对话', NULL, MIN(created_at), MAX(created_at)
+        SELECT 'legacy-' || project_id, project_id, 'Chat history', NULL, MIN(created_at), MAX(created_at)
         FROM chat_messages
         GROUP BY project_id;
 
@@ -44,7 +44,7 @@ async function migrateChatSessions(database: SQLite.SQLiteDatabase): Promise<voi
 
   await database.execAsync(`
     INSERT OR IGNORE INTO chat_sessions(id, project_id, title, model_id, created_at, updated_at)
-    SELECT 'legacy-' || project_id, project_id, '历史对话', NULL, MIN(created_at), MAX(created_at)
+    SELECT 'legacy-' || project_id, project_id, 'Chat history', NULL, MIN(created_at), MAX(created_at)
     FROM chat_messages
     WHERE session_id IS NULL OR session_id = ''
     GROUP BY project_id;
@@ -291,7 +291,7 @@ async function migrate(database: SQLite.SQLiteDatabase): Promise<void> {
       project.id,
       NULL,
       'author',
-      '我的作者文风',
+      'My author style',
       1,
       setting.value,
       project.updated_at,

@@ -60,7 +60,7 @@ export function WorldInfoScreen() {
     setError(null);
     try {
       const [nextProject, nextWorldInfo] = await Promise.all([getProject(projectId), getOrCreateWorldInfo(projectId)]);
-      if (!nextProject) throw new Error("作品不存在");
+      if (!nextProject) throw new Error("Project not found");
       setProject(nextProject);
       setWorldInfo(nextWorldInfo);
       setBookName(nextWorldInfo.name);
@@ -120,10 +120,10 @@ export function WorldInfoScreen() {
   };
 
   const removeEntry = (entry: WorldInfoEntry) => {
-    Alert.alert("删除世界书条目", `确定删除“${entry.name}”吗？`, [
-      { text: "取消", style: "cancel" },
+    Alert.alert("Delete world book entry", `Delete "${entry.name}"?`, [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "删除",
+        text: "Delete",
         style: "destructive",
         onPress: () => {
           void deleteWorldInfoEntry(entry.id)
@@ -148,26 +148,26 @@ export function WorldInfoScreen() {
   };
 
   const chooseExport = (items: WorldInfoEntry[], title: string) => {
-    Alert.alert(title, "选择导出格式", [
-      { text: "取消", style: "cancel" },
+    Alert.alert(title, "Choose an export format", [
+      { text: "Cancel", style: "cancel" },
       { text: "JSON", onPress: () => void runExport(items, "json") },
       { text: "Markdown", onPress: () => void runExport(items, "markdown") },
     ]);
   };
 
-  if (!projectId) return <Screen><Header title="世界书" onBack={() => navigation.goBack()} /><EmptyState title="请先从书架打开一部作品" /></Screen>;
+  if (!projectId) return <Screen><Header title="World book" onBack={() => navigation.goBack()} /><EmptyState title="Open a project from the shelf first" /></Screen>;
 
   return (
     <Screen>
       <Header
-        title="世界书"
+        title="World book"
         onBack={() => navigation.goBack()}
         action={(
           <View style={styles.headerActions}>
-            <Pressable accessibilityLabel="批量导出世界书" disabled={exporting || !entries.length} onPress={() => chooseExport(entries, "导出全部世界书条目")} style={styles.iconButton}>
+            <Pressable accessibilityLabel="Export the whole world book" disabled={exporting || !entries.length} onPress={() => chooseExport(entries, "Export all world book entries")} style={styles.iconButton}>
               {exporting ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="download-outline" size={22} color={entries.length ? colors.primary : colors.textMuted} />}
             </Pressable>
-            <Pressable accessibilityLabel="新建世界书条目" onPress={() => openEntryEditor()} style={styles.iconButton}><Ionicons name="add" size={26} color={colors.primary} /></Pressable>
+            <Pressable accessibilityLabel="New world book entry" onPress={() => openEntryEditor()} style={styles.iconButton}><Ionicons name="add" size={26} color={colors.primary} /></Pressable>
           </View>
         )}
       />
@@ -183,13 +183,13 @@ export function WorldInfoScreen() {
             contentContainerStyle={entries.length ? styles.list : styles.emptyList}
             ListHeaderComponent={
               <View style={styles.bookForm}>
-                <Field label="世界书名称" value={bookName} onChangeText={setBookName} />
-                <Field label="说明" value={bookDescription} onChangeText={setBookDescription} multiline textAlignVertical="top" style={styles.bookDescription} />
-                <Button label="保存世界书信息" onPress={() => void saveBook()} disabled={!bookName.trim()} loading={saving} />
-                <Text style={styles.sectionTitle}>条目 · {entries.length}</Text>
+                <Field label="World book name" value={bookName} onChangeText={setBookName} />
+                <Field label="Description" value={bookDescription} onChangeText={setBookDescription} multiline textAlignVertical="top" style={styles.bookDescription} />
+                <Button label="Save world book info" onPress={() => void saveBook()} disabled={!bookName.trim()} loading={saving} />
+                <Text style={styles.sectionTitle}>Entries · {entries.length}</Text>
               </View>
             }
-            ListEmptyComponent={<EmptyState title="还没有世界书条目" action={<Button label="新建条目" onPress={() => openEntryEditor()} />} />}
+            ListEmptyComponent={<EmptyState title="No world book entries yet" action={<Button label="New entry" onPress={() => openEntryEditor()} />} />}
             renderItem={({ item }) => (
               <Pressable onPress={() => openEntryEditor(item)} style={({ pressed }) => [styles.entryRow, pressed && styles.rowPressed]}>
                 <View style={styles.entryNumber}><Text style={styles.entryNumberText}>{item.uid}</Text></View>
@@ -202,13 +202,13 @@ export function WorldInfoScreen() {
                         .catch((toggleError) => setError(toggleError instanceof Error ? toggleError.message : String(toggleError)));
                     }} trackColor={{ false: colors.border, true: colors.primary }} />
                   </View>
-                  <Text numberOfLines={2} style={styles.entryContent}>{item.content || "暂无内容"}</Text>
+                  <Text numberOfLines={2} style={styles.entryContent}>{item.content || "No content yet"}</Text>
                 </View>
                 <View style={styles.rowActions}>
-                  <Pressable accessibilityLabel={`导出世界书条目 ${item.name}`} disabled={exporting} onPress={(event) => { event.stopPropagation(); chooseExport([item], `导出条目“${item.name}”`); }} hitSlop={8} style={styles.iconButton}>
+                  <Pressable accessibilityLabel={`Export world book entry ${item.name}`} disabled={exporting} onPress={(event) => { event.stopPropagation(); chooseExport([item], `Export entry "${item.name}"`); }} hitSlop={8} style={styles.iconButton}>
                     <Ionicons name="download-outline" size={19} color={colors.textMuted} />
                   </Pressable>
-                  <Pressable accessibilityLabel="删除世界书条目" onPress={(event) => { event.stopPropagation(); removeEntry(item); }} hitSlop={8} style={styles.iconButton}>
+                  <Pressable accessibilityLabel="Delete world book entry" onPress={(event) => { event.stopPropagation(); removeEntry(item); }} hitSlop={8} style={styles.iconButton}>
                     <Ionicons name="trash-outline" size={19} color={colors.textMuted} />
                   </Pressable>
                 </View>
@@ -222,8 +222,8 @@ export function WorldInfoScreen() {
         <KeyboardAvoidingView style={styles.modalBackdrop} behavior="height" automaticOffset>
           <View style={styles.modalBody}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editingEntry ? "编辑条目" : "新建条目"}</Text>
-              <Pressable accessibilityLabel="关闭世界书编辑" onPress={() => setEntryEditorVisible(false)} style={styles.iconButton}>
+              <Text style={styles.modalTitle}>{editingEntry ? "Edit entry" : "New entry"}</Text>
+              <Pressable accessibilityLabel="Close world book editor" onPress={() => setEntryEditorVisible(false)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -235,15 +235,15 @@ export function WorldInfoScreen() {
               extraKeyboardSpace={spacing.md}
               contentContainerStyle={styles.form}
             >
-              <Field label="条目名称" value={entryName} onChangeText={setEntryName} autoFocus={!editingEntry} />
-              <Field label="条目内容" value={entryContent} onChangeText={setEntryContent} multiline textAlignVertical="top" style={styles.entryInput} placeholder="人物关系、地点规则、时代背景等" />
+              <Field label="Entry name" value={entryName} onChangeText={setEntryName} autoFocus={!editingEntry} />
+              <Field label="Entry content" value={entryContent} onChangeText={setEntryContent} multiline textAlignVertical="top" style={styles.entryInput} placeholder="Character relationships, location rules, era background, etc." />
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>启用条目</Text>
+                <Text style={styles.switchLabel}>Enable entry</Text>
                 <Switch value={entryEnabled} onValueChange={setEntryEnabled} trackColor={{ false: colors.border, true: colors.primary }} />
               </View>
               <View style={styles.modalActions}>
-                <Button label="取消" variant="secondary" onPress={() => setEntryEditorVisible(false)} />
-                <Button label="保存" onPress={() => void saveEntry()} disabled={!entryName.trim()} loading={saving} />
+                <Button label="Cancel" variant="secondary" onPress={() => setEntryEditorVisible(false)} />
+                <Button label="Save" onPress={() => void saveEntry()} disabled={!entryName.trim()} loading={saving} />
               </View>
             </KeyboardAwareScrollView>
           </View>

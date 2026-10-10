@@ -64,9 +64,9 @@ import type {
 function requestToolApproval(name: string, args: Record<string, unknown>): Promise<boolean> {
   const details = JSON.stringify(args, null, 2).slice(0, 1_200);
   return new Promise((resolve) => {
-    Alert.alert("确认工具调用", `${name}\n\n${details}`, [
-      { text: "拒绝", style: "cancel", onPress: () => resolve(false) },
-      { text: "允许一次", onPress: () => resolve(true) },
+    Alert.alert("Confirm tool call", `${name}\n\n${details}`, [
+      { text: "Deny", style: "cancel", onPress: () => resolve(false) },
+      { text: "Allow once", onPress: () => resolve(true) },
     ], { cancelable: false });
   });
 }
@@ -76,7 +76,7 @@ function activeSessionSettingKey(projectId: string): string {
 }
 
 function generatedSessionTitle(content: string): string {
-  return content.replace(/\s+/g, " ").trim().slice(0, 24) || "新对话";
+  return content.replace(/\s+/g, " ").trim().slice(0, 24) || "New chat";
 }
 
 function formatSessionTime(value: string): string {
@@ -97,7 +97,7 @@ async function resolveSelection(
   const provider = providers.find((item) => item.id === model.providerId);
   if (!provider) return null;
   const apiKey = await getProviderApiKey(provider);
-  if (!apiKey) throw new Error(`${provider.name} 没有可用的 API Key，请到设置页重新保存`);
+  if (!apiKey) throw new Error(`${provider.name} has no usable API key; save it again in Settings`);
   return { provider, model, apiKey };
 }
 
@@ -114,19 +114,19 @@ function humanizeAgentError(error: unknown): { message: string; detail: string }
   const detail = error instanceof Error ? error.message : String(error);
   const normalized = detail.toLowerCase();
   if (/sslhandshake|ssl handshake|certificate|connection closed/.test(normalized)) {
-    return { message: "网络连接异常（SSL 握手失败），请检查网络环境或供应商配置后重试", detail };
+    return { message: "Network problem (SSL handshake failed); check your network or provider configuration and try again", detail };
   }
   if (/timeout|timed out|aborterror|请求超时/.test(normalized)) {
-    return { message: "模型请求超时，请检查网络或供应商配置后重试", detail };
+    return { message: "The model request timed out; check your network or provider configuration and try again", detail };
   }
   if (/fetch failed|network request failed|unable to connect|cannot connect/.test(normalized)) {
-    return { message: "网络连接异常，请检查网络、Base URL 和证书设置后重试", detail };
+    return { message: "Network problem; check your network, Base URL and certificate settings and try again", detail };
   }
   if (/\bhttp\s*400\b|\b400\s*:/.test(normalized)) {
-    return { message: "供应商拒绝了本次请求（400），请检查模型工具调用兼容性后重试", detail };
+    return { message: "The provider rejected this request (400); check the model's tool-calling compatibility and try again", detail };
   }
   if (/\bhttp\s*429\b|\b429\s*:/.test(normalized)) {
-    return { message: "供应商暂时限流（429），请稍后重试或更换模型", detail };
+    return { message: "The provider is rate-limiting (429); try again later or switch models", detail };
   }
   return { message: detail, detail };
 }
@@ -162,7 +162,7 @@ function ErrorDetails({ detail }: { detail: string }) {
   return (
     <View style={styles.errorDetails}>
       <Pressable accessibilityRole="button" onPress={() => setExpanded((value) => !value)} style={styles.errorDetailsToggle}>
-        <Text style={styles.errorDetailsLabel}>原始错误详情</Text>
+        <Text style={styles.errorDetailsLabel}>Raw error details</Text>
         <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={15} color={colors.textMuted} />
       </Pressable>
       {expanded ? <Text selectable style={styles.errorDetailsText}>{detail}</Text> : null}
@@ -302,7 +302,7 @@ export function AssistantScreen() {
         listStyleProfileOptions(projectId),
         getActiveStyleProfile(projectId),
       ]);
-      if (!nextProject) throw new Error("作品不存在");
+      if (!nextProject) throw new Error("Project not found");
       const activeAgent = agents.find((agent) => agent.id === activeAgentId && agent.enabled && agent.kind === "primary")
         ?? agents.find((agent) => agent.id === "builtin-agent--build" && agent.enabled)
         ?? agents.find((agent) => agent.enabled && agent.kind === "primary");
@@ -397,7 +397,7 @@ export function AssistantScreen() {
     setError(null);
     try {
       if (session.projectId !== projectId || !sessions.some((item) => item.id === session.id)) {
-        throw new Error("对话不属于当前作品");
+        throw new Error("The chat does not belong to the current project");
       }
       const effectiveModelId = models.some((model) => model.id === session.modelId) ? session.modelId : defaultModelId;
       const nextMessages = await listMessages(session.id);
@@ -473,7 +473,7 @@ export function AssistantScreen() {
     if (!projectId || sending) return;
     try {
       if (session.projectId !== projectId || !sessions.some((item) => item.id === session.id)) {
-        throw new Error("对话不属于当前作品");
+        throw new Error("The chat does not belong to the current project");
       }
       await deleteChatSession(session.id);
       const remaining = sessions.filter((item) => item.id !== session.id);
@@ -501,9 +501,9 @@ export function AssistantScreen() {
   };
 
   const confirmDeleteSession = (session: ChatSession) => {
-    Alert.alert("删除对话", `确定删除“${session.title}”及其中的全部消息？`, [
-      { text: "取消", style: "cancel" },
-      { text: "删除", style: "destructive", onPress: () => void removeSession(session) },
+    Alert.alert("Delete chat", `Delete "${session.title}" and all its messages?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => void removeSession(session) },
     ]);
   };
 
@@ -548,7 +548,7 @@ export function AssistantScreen() {
     if (!project || !activeSession || !content || sending) return;
     if (retry && (retry.sessionId !== activeSession.id || !messages.some((message) => message.id === retry.userMessage.id))) {
       setRetryRequest(null);
-      setError("重试消息已不在当前对话中，请重新发送");
+      setError("The message to retry is no longer in this chat; send it again");
       return;
     }
     const sessionId = activeSession.id;
@@ -572,7 +572,7 @@ export function AssistantScreen() {
       // 否则用户换了可用模型后点重试仍会打回那个出错的旧模型。
       runSelection = selection
         ?? (retry?.modelId ? await resolveSelection(retry.modelId, models, providers) : null);
-      if (!runSelection) throw new Error("请先配置可用模型");
+      if (!runSelection) throw new Error("Configure a usable model first");
       if (retry?.sourceMessageId) {
         await deleteMessagesFrom(sessionId, retry.sourceMessageId);
         if (!isCurrentRequest()) return;
@@ -585,7 +585,7 @@ export function AssistantScreen() {
         let baseHistory = messages;
         if (editTarget) {
           const editIndex = messages.findIndex((message) => message.id === editTarget.id);
-          if (editIndex < 0) throw new Error("要编辑的消息不存在");
+          if (editIndex < 0) throw new Error("The message to edit does not exist");
           const replacement = await replaceUserMessageBranch(sessionId, editTarget.id, content);
           userMessage = replacement.message;
           userMessageSaved = true;
@@ -599,7 +599,7 @@ export function AssistantScreen() {
           nextHistory = [...baseHistory, userMessage];
           workingSession = {
             ...workingSession,
-            title: workingSession.title === "新对话" ? generatedSessionTitle(content) : workingSession.title,
+            title: workingSession.title === "New chat" ? generatedSessionTitle(content) : workingSession.title,
             updatedAt: userMessage.createdAt,
           };
         }
@@ -609,7 +609,7 @@ export function AssistantScreen() {
         setActiveSession(workingSession);
         setSessions((current) => [workingSession, ...current.filter((session) => session.id !== workingSession.id)]);
       }
-      if (!userMessage) throw new Error("消息准备失败，请重试");
+      if (!userMessage) throw new Error("Failed to prepare the message; try again");
       const response = await runAgent({
         project,
         selection: runSelection,
@@ -649,7 +649,7 @@ export function AssistantScreen() {
           const failedMessage = await addMessage(
             sessionId,
             "assistant",
-            "任务未完成：" + friendlyError.message,
+            "Task not completed: " + friendlyError.message,
             {
               agentTrace: failedTrace ?? undefined,
               taskStatus: "failed",
@@ -677,19 +677,19 @@ export function AssistantScreen() {
       if (isCurrentRequest()) setSending(false);
     }
   };
-  if (!projectId) return <Screen><EmptyState title="请先从书架选择一部作品" /></Screen>;
-  if (loading) return <Screen><Header title="创作助手" /><View style={styles.loading}><ActivityIndicator color={colors.primary} /></View></Screen>;
+  if (!projectId) return <Screen><EmptyState title="Choose a project from the shelf first" /></Screen>;
+  if (loading) return <Screen><Header title="Writing assistant" /><View style={styles.loading}><ActivityIndicator color={colors.primary} /></View></Screen>;
 
   return (
     <Screen>
       <Header
-        title="创作助手"
+        title="Writing assistant"
         action={
           <View style={styles.headerActions}>
-            <Pressable accessibilityLabel="新建对话" disabled={sending} onPress={() => void newSession()} style={styles.iconButton}>
+            <Pressable accessibilityLabel="New chat" disabled={sending} onPress={() => void newSession()} style={styles.iconButton}>
               <Ionicons name="create-outline" size={22} color={colors.primary} />
             </Pressable>
-            <Pressable accessibilityLabel="管理对话" disabled={sending} onPress={() => setSessionPickerVisible(true)} style={styles.iconButton}>
+            <Pressable accessibilityLabel="Manage chats" disabled={sending} onPress={() => setSessionPickerVisible(true)} style={styles.iconButton}>
               <Ionicons name="chatbubbles-outline" size={22} color={colors.primary} />
             </Pressable>
           </View>
@@ -699,19 +699,19 @@ export function AssistantScreen() {
         <View style={styles.projectContext}>
           <Ionicons name="book-outline" size={19} color={colors.primary} />
           <View style={styles.projectCopy}>
-            <Text style={styles.projectTitle} numberOfLines={1}>{project?.title ?? "当前作品"}</Text>
-            <Text style={styles.agentLabel} numberOfLines={1}>{activeAgentName} 主智能体</Text>
+            <Text style={styles.projectTitle} numberOfLines={1}>{project?.title ?? "Current project"}</Text>
+            <Text style={styles.agentLabel} numberOfLines={1}>{activeAgentName} primary agent</Text>
           </View>
         </View>
         <Pressable
-          accessibilityLabel="切换助手模型"
+          accessibilityLabel="Switch assistant model"
           disabled={!models.length || sending}
           onPress={() => setModelPickerVisible(true)}
           style={styles.modelSelector}
         >
           <Ionicons name="hardware-chip-outline" size={17} color={selection ? colors.primary : colors.textMuted} />
           <Text style={[styles.modelSelectorText, !selection && styles.mutedText]} numberOfLines={1}>
-            {selection?.model.name ?? "选择模型"}
+            {selection?.model.name ?? "Choose a model"}
           </Text>
           <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
         </Pressable>
@@ -728,13 +728,13 @@ export function AssistantScreen() {
           <Ionicons name="color-wand-outline" size={17} color={activeStyleProfile ? colors.primary : colors.textMuted} />
         )}
         <Text style={[styles.styleSelectorText, activeStyleProfile && styles.styleSelectorTextActive]} numberOfLines={1}>
-          {activeStyleProfile ? styleProfileLabel(activeStyleProfile) : "不使用创作文风"}
+          {activeStyleProfile ? styleProfileLabel(activeStyleProfile) : "No writing style"}
         </Text>
         <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
       </Pressable>
       <Pressable accessibilityRole="button" disabled={sending} onPress={() => setSessionPickerVisible(true)} style={styles.sessionSelector}>
         <Ionicons name="chatbubble-outline" size={17} color={colors.textMuted} />
-        <Text style={styles.sessionTitle} numberOfLines={1}>{activeSession?.title ?? "新对话"}</Text>
+        <Text style={styles.sessionTitle} numberOfLines={1}>{activeSession?.title ?? "New chat"}</Text>
         <Text style={styles.sessionTime}>{activeSession ? formatSessionTime(activeSession.updatedAt) : ""}</Text>
         <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
       </Pressable>
@@ -755,9 +755,9 @@ export function AssistantScreen() {
               </View>
             ) : null}
             ListEmptyComponent={models.length ? (
-              <EmptyState title="告诉助手你想续写、修改或检索什么" />
+              <EmptyState title="Tell the assistant what to continue, edit or look up" />
             ) : (
-              <EmptyState title="请先配置供应商并添加模型" action={<Button label="打开模型设置" onPress={() => navigation.navigate("Settings")} />} />
+              <EmptyState title="Configure a provider and add a model first" action={<Button label="Open model settings" onPress={() => navigation.navigate("Settings")} />} />
             )}
             renderItem={({ item }) => (
               <View style={[styles.message, item.role === "user" ? styles.userMessage : styles.assistantMessage]}>
@@ -767,11 +767,11 @@ export function AssistantScreen() {
                   return (
                     <>
                 <View style={styles.messageHeader}>
-                  <Text style={styles.messageRole}>{item.role === "user" ? "你" : "OpenFicM"}</Text>
+                  <Text style={styles.messageRole}>{item.role === "user" ? "You" : "OpenFicM"}</Text>
                   {item.role === "user" ? (
-                    <Pressable accessibilityLabel="编辑这条消息" disabled={sending} onPress={() => beginEditMessage(item)} style={styles.messageEditButton}>
+                    <Pressable accessibilityLabel="Edit this message" disabled={sending} onPress={() => beginEditMessage(item)} style={styles.messageEditButton}>
                       <Ionicons name="create-outline" size={17} color={colors.primary} />
-                      <Text style={styles.messageEditText}>编辑</Text>
+                      <Text style={styles.messageEditText}>Edit</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -783,11 +783,11 @@ export function AssistantScreen() {
                   />
                 ) : failed ? (
                   <View style={styles.failureCard}>
-                    <Text style={styles.failureTitle}>执行失败</Text>
+                    <Text style={styles.failureTitle}>Run failed</Text>
                     {messageRetry ? (
                       <Pressable accessibilityRole="button" disabled={sending} onPress={() => void send(messageRetry)} style={[styles.failureRetry, sending && styles.failureRetryDisabled]}>
                         <Ionicons name="refresh-outline" size={17} color={colors.danger} />
-                        <Text style={styles.failureRetryText}>{sending ? "处理中" : "重试"}</Text>
+                        <Text style={styles.failureRetryText}>{sending ? "Working" : "Retry"}</Text>
                       </Pressable>
                     ) : null}
                   </View>
@@ -804,7 +804,7 @@ export function AssistantScreen() {
             )}
           />
           {showJumpToBottom ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="回到最新消息" onPress={() => scrollToBottom(true)} style={styles.jumpToBottom}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Back to latest" onPress={() => scrollToBottom(true)} style={styles.jumpToBottom}>
               <Ionicons name="arrow-down" size={22} color={colors.primary} />
             </Pressable>
           ) : null}
@@ -815,9 +815,9 @@ export function AssistantScreen() {
             <View style={styles.editingBanner}>
               <View style={styles.editingCopy}>
                 <Ionicons name="create-outline" size={17} color={colors.primary} />
-                <Text style={styles.editingText}>正在编辑之前的发言</Text>
+                <Text style={styles.editingText}>Editing an earlier message</Text>
               </View>
-              <Pressable accessibilityLabel="取消编辑" onPress={cancelMessageEdit} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Cancel edit" onPress={cancelMessageEdit} style={styles.iconButton}>
                 <Ionicons name="close" size={20} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -828,14 +828,14 @@ export function AssistantScreen() {
               value={input}
               onChangeText={setInput}
               style={styles.composerInput}
-              placeholder={editingMessageId ? "修改后重新发送" : "输入创作任务"}
+              placeholder={editingMessageId ? "Edit and resend" : "Enter a writing task"}
               placeholderTextColor={colors.textMuted}
               editable={!sending}
               multiline
               maxLength={12000}
             />
             <Pressable
-              accessibilityLabel={sending ? "停止生成" : editingMessageId ? "重发编辑后的消息" : "发送"}
+              accessibilityLabel={sending ? "Stop generating" : editingMessageId ? "Resend edited message" : "Send"}
               disabled={sending ? false : !selection || !input.trim()}
               onPress={() => {
                 if (sending) stopSending();
@@ -858,13 +858,13 @@ export function AssistantScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <View style={styles.sheetTitleWrap}>
-                <Text style={styles.sheetTitle} numberOfLines={1}>{project?.title ?? "当前作品"}</Text>
-                <Text style={styles.sheetSubtitle}>{sessions.length} 个对话</Text>
+                <Text style={styles.sheetTitle} numberOfLines={1}>{project?.title ?? "Current project"}</Text>
+                <Text style={styles.sheetSubtitle}>{sessions.length} chats</Text>
               </View>
-              <Pressable accessibilityLabel="新建对话" onPress={() => void newSession()} style={styles.iconButton}>
+              <Pressable accessibilityLabel="New chat" onPress={() => void newSession()} style={styles.iconButton}>
                 <Ionicons name="add" size={25} color={colors.primary} />
               </Pressable>
-              <Pressable accessibilityLabel="关闭对话列表" onPress={() => setSessionPickerVisible(false)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close chat list" onPress={() => setSessionPickerVisible(false)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -882,9 +882,9 @@ export function AssistantScreen() {
                     <Ionicons name={selected ? "radio-button-on" : "radio-button-off"} size={20} color={selected ? colors.primary : colors.textMuted} />
                     <View style={styles.sheetRowText}>
                       <Text style={styles.sheetRowTitle} numberOfLines={1}>{item.title}</Text>
-                      <Text style={styles.sheetRowMeta} numberOfLines={1}>{sessionModel?.name ?? "未选择模型"} · {formatSessionTime(item.updatedAt)}</Text>
+                      <Text style={styles.sheetRowMeta} numberOfLines={1}>{sessionModel?.name ?? "No model selected"} · {formatSessionTime(item.updatedAt)}</Text>
                     </View>
-                    <Pressable accessibilityLabel={`删除对话 ${item.title}`} onPress={(event) => { event.stopPropagation(); confirmDeleteSession(item); }} style={styles.iconButton}>
+                    <Pressable accessibilityLabel={`Delete chat ${item.title}`} onPress={(event) => { event.stopPropagation(); confirmDeleteSession(item); }} style={styles.iconButton}>
                       <Ionicons name="trash-outline" size={19} color={colors.danger} />
                     </Pressable>
                   </Pressable>
@@ -900,10 +900,10 @@ export function AssistantScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <View style={styles.sheetTitleWrap}>
-                <Text style={styles.sheetTitle}>选择模型</Text>
-                <Text style={styles.sheetSubtitle}>仅用于当前对话</Text>
+                <Text style={styles.sheetTitle}>Choose a model</Text>
+                <Text style={styles.sheetSubtitle}>For this chat only</Text>
               </View>
-              <Pressable accessibilityLabel="关闭模型列表" onPress={() => setModelPickerVisible(false)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close model list" onPress={() => setModelPickerVisible(false)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -916,8 +916,8 @@ export function AssistantScreen() {
                 <Pressable onPress={() => void chooseModel(null)} style={[styles.sheetRow, activeSession?.modelId === null && styles.sheetRowActive]}>
                   <Ionicons name={activeSession?.modelId === null ? "radio-button-on" : "radio-button-off"} size={20} color={activeSession?.modelId === null ? colors.primary : colors.textMuted} />
                   <View style={styles.sheetRowText}>
-                    <Text style={styles.sheetRowTitle}>跟随主智能体或全局模型</Text>
-                    <Text style={styles.sheetRowMeta}>{models.find((model) => model.id === defaultModelId)?.name ?? "尚未设置默认模型"}</Text>
+                    <Text style={styles.sheetRowTitle}>Follow the primary agent or global model</Text>
+                    <Text style={styles.sheetRowMeta}>{models.find((model) => model.id === defaultModelId)?.name ?? "No default model set"}</Text>
                   </View>
                 </Pressable>
               }
@@ -929,7 +929,7 @@ export function AssistantScreen() {
                     <Ionicons name={selected ? "radio-button-on" : "radio-button-off"} size={20} color={selected ? colors.primary : colors.textMuted} />
                     <View style={styles.sheetRowText}>
                       <Text style={styles.sheetRowTitle} numberOfLines={1}>{item.name}</Text>
-                      <Text style={styles.sheetRowMeta} numberOfLines={1}>{provider?.name ?? "未知供应商"} · {item.modelId}</Text>
+                      <Text style={styles.sheetRowMeta} numberOfLines={1}>{provider?.name ?? "Unknown provider"} · {item.modelId}</Text>
                     </View>
                   </Pressable>
                 );
@@ -940,7 +940,7 @@ export function AssistantScreen() {
       </Modal>
       <StyleProfilePickerSheet
         visible={stylePickerVisible}
-        subtitle={project?.title ?? "当前作品"}
+        subtitle={project?.title ?? "Current project"}
         options={styleOptions}
         activeProfileId={activeStyleProfile?.id ?? null}
         onSelect={(profile) => void chooseStyle(profile)}
