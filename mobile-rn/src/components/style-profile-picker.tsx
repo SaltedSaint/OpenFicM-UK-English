@@ -43,21 +43,21 @@ export function StyleProfilePickerSheet(input: {
         <View style={styles.sheet}>
           <View style={styles.header}>
             {previewOption ? (
-              <Pressable accessibilityLabel="返回文风列表" onPress={() => setPreviewId(null)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Back to style list" onPress={() => setPreviewId(null)} style={styles.iconButton}>
                 <Ionicons name="chevron-back" size={24} color={colors.text} />
               </Pressable>
             ) : null}
             <View style={styles.headerCopy}>
               <Text style={styles.title} numberOfLines={2}>
-                {previewOption ? describeStyleProfileOption(previewOption).title : input.title ?? "选择创作文风"}
+                {previewOption ? describeStyleProfileOption(previewOption).title : input.title ?? "Choose a writing style"}
               </Text>
               <Text style={styles.subtitle} numberOfLines={previewOption ? 3 : 2}>
                 {previewOption
-                  ? "以下是这份文风的完整内容，只读预览"
-                  : input.subtitle ?? "会用于助手生成或修改正文"}
+                  ? "Below is the full content of this style, for read-only preview"
+                  : input.subtitle ?? "Used for the assistant's prose generation or edits"}
               </Text>
             </View>
-            <Pressable accessibilityLabel="关闭文风列表" onPress={input.onClose} style={styles.iconButton}>
+            <Pressable accessibilityLabel="Close style list" onPress={input.onClose} style={styles.iconButton}>
               <Ionicons name="close" size={24} color={colors.textMuted} />
             </Pressable>
           </View>
@@ -73,7 +73,7 @@ export function StyleProfilePickerSheet(input: {
                 <View style={styles.notice}>
                   <Ionicons name="information-circle-outline" size={17} color={colors.primary} />
                   <Text style={styles.noticeText}>
-                    有 {duplicateTitle[1]} 份同名参考文风，来自多次导入的不同文件（看字数与轮次区分）。不用的那几份到“文风书库 → 参考小说”删掉对应参考书即可。
+                    There are {duplicateTitle[1]} reference styles with the same name, from different files imported more than once (tell them apart by character count and round). To remove the ones you do not need, delete the matching reference book under Style library → Reference novels.
                   </Text>
                 </View>
               ) : null}
@@ -87,8 +87,8 @@ export function StyleProfilePickerSheet(input: {
                   color={input.activeProfileId === null ? colors.primary : colors.textMuted}
                 />
                 <View style={styles.rowCopy}>
-                  <Text style={styles.rowTitle}>不使用文风</Text>
-                  <Text style={styles.rowMeta}>只遵循本轮要求与作品设定</Text>
+                  <Text style={styles.rowTitle}>No style</Text>
+                  <Text style={styles.rowMeta}>Follow only this turn's request and the project material</Text>
                 </View>
               </Pressable>
               {input.options.length ? input.options.map((option) => {
@@ -97,7 +97,7 @@ export function StyleProfilePickerSheet(input: {
                 return (
                   <View key={option.profile.id} style={[styles.row, selected && styles.rowActive]}>
                     <Pressable
-                      accessibilityLabel={`使用 ${description.title}`}
+                      accessibilityLabel={`Use ${description.title}`}
                       onPress={() => input.onSelect(option.profile)}
                       style={styles.rowMain}
                     >
@@ -113,17 +113,17 @@ export function StyleProfilePickerSheet(input: {
                       </View>
                     </Pressable>
                     <Pressable
-                      accessibilityLabel={`查看 ${description.title} 的完整内容`}
+                      accessibilityLabel={`View the full content of ${description.title}`}
                       onPress={() => setPreviewId(option.profile.id)}
                       style={styles.previewButton}
                     >
                       <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-                      <Text style={styles.previewButtonText}>全文</Text>
+                      <Text style={styles.previewButtonText}>Full text</Text>
                     </Pressable>
                   </View>
                 );
               }) : (
-                <Text style={styles.emptyHint}>还没有可选文风；到“设置 → 作者文风”（文风书库）蒸馏参考文风，或进化一份作者文风。</Text>
+                <Text style={styles.emptyHint}>No selectable style yet; distil a reference style in Settings → Author style (the style library), or evolve an author style.</Text>
               )}
             </ScrollView>
           )}

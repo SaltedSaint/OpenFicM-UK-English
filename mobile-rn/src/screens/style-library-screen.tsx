@@ -99,11 +99,11 @@ export function StyleLibraryScreen() {
   const coverageStarted = Boolean(distillationCoverage && distillationCoverage.coveredUntil > 0);
   const coverageFinished = Boolean(distillationCoverage
     && distillationCoverage.coveredUntil >= distillationCoverage.totalUnits);
-  const coverageUnitName = distillationCoverage?.unitKind === "segment" ? "段" : "章";
+  const coverageUnitName = distillationCoverage?.unitKind === "segment" ? "segment" : "chapter";
   const taskForSelectedSource = runningTask && selectedSource && runningTask.sourceId === selectedSource.id
     ? runningTask
     : null;
-  const outcomeUnitName = distillationOutcome?.unitKind === "segment" ? "段" : "章";
+  const outcomeUnitName = distillationOutcome?.unitKind === "segment" ? "segment" : "chapter";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -221,18 +221,18 @@ export function StyleLibraryScreen() {
   const confirmRestart = () => {
     if (!selectedSource) return;
     Alert.alert(
-      "重新开始蒸馏",
-      "会清空已覆盖的进度，从全书开头重新扫描；新结果直接替换《" + selectedSource.title + "》现有的参考文风，旧内容不会保留。",
+      "Restart distillation",
+      "This clears the covered progress and rescans from the start of the book; the new result replaces the existing reference style for \"" + selectedSource.title + "\" and the old content is not kept.",
       [
-        { text: "取消", style: "cancel" },
-        { text: "重新开始", style: "destructive", onPress: () => void distill(true) },
+        { text: "Cancel", style: "cancel" },
+        { text: "Restart", style: "destructive", onPress: () => void distill(true) },
       ],
     );
   };
 
   const activate = async (profile: StyleProfile | null) => {
     if (!projectId) {
-      setError("请先从书架打开一部作品，再选择创作文风");
+      setError("Open a project from the shelf first, then choose a writing style");
       return;
     }
     setBusy(true);
@@ -267,12 +267,12 @@ export function StyleLibraryScreen() {
   const confirmDeleteSource = () => {
     if (!selectedSource) return;
     Alert.alert(
-      "删除参考书",
-      "确定删除《" + selectedSource.title + "》及其参考文风？原文件只保存在本机。",
+      "Delete reference book",
+      "Delete \"" + selectedSource.title + "\" and its reference style? The original file is stored only on this device.",
       [
-        { text: "取消", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: "删除",
+          text: "Delete",
           style: "destructive",
           onPress: () => {
             setBusy(true);
@@ -297,7 +297,7 @@ export function StyleLibraryScreen() {
     try {
       const profile = await createAuthorStyleProfileVersion({
         projectId,
-        name: "我的作者文风",
+        name: "My author style",
         guide: authorGuide,
         activateForProjectId: projectId,
       });
@@ -313,10 +313,10 @@ export function StyleLibraryScreen() {
   };
 
   const removeProfile = (profile: StyleProfile) => {
-    Alert.alert("删除文风", "确定删除“" + styleProfileLabel(profile) + "”？", [
-      { text: "取消", style: "cancel" },
+    Alert.alert("Delete style", "Delete \"" + styleProfileLabel(profile) + "\"?", [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "删除",
+        text: "Delete",
         style: "destructive",
         onPress: () => {
           setBusy(true);
@@ -334,16 +334,16 @@ export function StyleLibraryScreen() {
   };
 
   if (loading) {
-    return <Screen><Header title="文风书库" onBack={() => navigation.goBack()} /><View style={styles.loading}><ActivityIndicator color={colors.primary} /></View></Screen>;
+    return <Screen><Header title="Style library" onBack={() => navigation.goBack()} /><View style={styles.loading}><ActivityIndicator color={colors.primary} /></View></Screen>;
   }
 
   return (
     <Screen>
       <Header
-        title="文风书库"
+        title="Style library"
         onBack={() => navigation.goBack()}
         action={(
-          <Pressable accessibilityLabel="导入参考小说" disabled={busy} onPress={() => void importBook()} style={styles.iconButton}>
+          <Pressable accessibilityLabel="Import reference novel" disabled={busy} onPress={() => void importBook()} style={styles.iconButton}>
             {busy ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="add" size={26} color={colors.primary} />}
           </Pressable>
         )}
@@ -358,21 +358,21 @@ export function StyleLibraryScreen() {
             <View style={styles.intro}>
               <View style={styles.introIcon}><Ionicons name="color-wand-outline" size={24} color={colors.primary} /></View>
               <View style={styles.introCopy}>
-                <Text style={styles.introTitle}>参考文风与作者文风</Text>
-                <Text style={styles.introText}>导入本机小说后，使用当前默认模型提取独立文风 Skill。原书不会自动上传，只有蒸馏时发送抽样文本。</Text>
+                <Text style={styles.introTitle}>Reference styles and author styles</Text>
+                <Text style={styles.introText}>After importing a novel from this device, the current default model extracts a separate style skill. The whole book is never uploaded; only sampled text is sent during distillation.</Text>
               </View>
             </View>
             {runningTask ? (
               <View style={styles.taskBanner}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <View style={styles.taskBannerCopy}>
-                  <Text style={styles.taskBannerTitle}>正在蒸馏《{runningTask.sourceTitle}》</Text>
+                  <Text style={styles.taskBannerTitle}>Distilling "{runningTask.sourceTitle}"</Text>
                   <Text style={styles.taskBannerText} numberOfLines={2}>
-                    {runningTask.label}；可以离开这一页做别的事，任务会继续跑。
+                    {runningTask.label}. You can leave this screen and do other things; the task keeps running.
                   </Text>
                 </View>
-                <Pressable accessibilityLabel="取消蒸馏" onPress={() => cancelStyleDistillation()} style={styles.taskBannerAction}>
-                  <Text style={styles.taskBannerActionText}>取消</Text>
+                <Pressable accessibilityLabel="Cancel distillation" onPress={() => cancelStyleDistillation()} style={styles.taskBannerAction}>
+                  <Text style={styles.taskBannerActionText}>Cancel</Text>
                 </Pressable>
               </View>
             ) : distillationOutcome ? (
@@ -384,17 +384,17 @@ export function StyleLibraryScreen() {
                 />
                 <View style={styles.taskBannerCopy}>
                   <Text style={styles.taskBannerTitle} numberOfLines={1}>
-                    {distillationOutcome.error ? "蒸馏失败" : distillationOutcome.cancelled ? "已取消蒸馏" : "蒸馏完成"}《{distillationOutcome.sourceTitle}》
+                    {distillationOutcome.error ? "Distillation failed" : distillationOutcome.cancelled ? "Distillation cancelled" : "Distillation complete"} · "{distillationOutcome.sourceTitle}"
                   </Text>
                   <Text style={styles.taskBannerText} numberOfLines={3}>
                     {distillationOutcome.error
                       ?? (distillationOutcome.cancelled
-                        ? `已完成的部分保留在断点里，已覆盖到第 ${distillationOutcome.coveredUntil}/${distillationOutcome.totalUnits} ${outcomeUnitName}；再次点击“继续蒸馏”会从断点接着跑。`
-                        : `第 ${distillationOutcome.round} 轮，覆盖到第 ${distillationOutcome.coveredUntil}/${distillationOutcome.totalUnits} ${outcomeUnitName}${distillationOutcome.reachedEnd ? "（全书已覆盖）" : ""}。`)}
+                        ? `The completed part is kept in the checkpoint, covered up to ${distillationOutcome.coveredUntil}/${distillationOutcome.totalUnits} ${outcomeUnitName}; tapping "Continue distilling" again resumes from the checkpoint.`
+                        : `Round ${distillationOutcome.round}, covered up to ${distillationOutcome.coveredUntil}/${distillationOutcome.totalUnits} ${outcomeUnitName}${distillationOutcome.reachedEnd ? " (whole book covered)" : ""}.`)}
                   </Text>
                 </View>
-                <Pressable accessibilityLabel="关闭蒸馏结果提示" onPress={dismissOutcome} style={styles.taskBannerAction}>
-                  <Text style={styles.taskBannerActionText}>关闭</Text>
+                <Pressable accessibilityLabel="Dismiss the distillation result" onPress={dismissOutcome} style={styles.taskBannerAction}>
+                  <Text style={styles.taskBannerActionText}>Close</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -402,15 +402,15 @@ export function StyleLibraryScreen() {
               <View style={styles.activeStrip}>
                 <Ionicons name="checkmark-circle-outline" size={19} color={colors.primary} />
                 <Text style={styles.activeStripText} numberOfLines={2}>
-                  当前使用：{activeProfile ? styleProfileLabel(activeProfile) : "不使用文风"}
+                  Currently using: {activeProfile ? styleProfileLabel(activeProfile) : "No style"}
                 </Text>
-                {activeProfile ? <Pressable onPress={() => void activate(null)} disabled={busy} style={styles.clearActive}><Text style={styles.clearActiveText}>清除</Text></Pressable> : null}
+                {activeProfile ? <Pressable onPress={() => void activate(null)} disabled={busy} style={styles.clearActive}><Text style={styles.clearActiveText}>Clear</Text></Pressable> : null}
               </View>
             ) : null}
             {authorProfiles.length ? (
               <View style={styles.sectionHeading}>
-                <Text style={styles.sectionTitle}>我的作者文风</Text>
-                <Text style={styles.sectionMeta}>{authorProfiles.length} 个版本</Text>
+                <Text style={styles.sectionTitle}>My author style</Text>
+                <Text style={styles.sectionMeta}>{authorProfiles.length} versions</Text>
               </View>
             ) : null}
             {authorProfiles.map((profile) => (
@@ -424,20 +424,20 @@ export function StyleLibraryScreen() {
               />
             ))}
             <View style={styles.sectionHeading}>
-              <Text style={styles.sectionTitle}>参考小说</Text>
-              <Text style={styles.sectionMeta}>{sources.length} 本</Text>
+              <Text style={styles.sectionTitle}>Reference novels</Text>
+              <Text style={styles.sectionMeta}>{sources.length} books</Text>
             </View>
             {hasDuplicateSourceTitles ? (
               <Text style={styles.helperText}>
-                有同名参考书：同名条目是多次导入的不同文件（按文件内容判重，同一个文件重复导入会被拒绝），各自带一份参考文风。不需要的那几份删掉参考书即可连带删掉它的文风。
+                Duplicate-name books: entries with the same name are different files imported more than once (duplicates are detected by file content, so re-importing the same file is rejected), each carrying its own reference style. To remove the ones you do not need, delete the reference book and its style goes with it.
               </Text>
             ) : null}
           </View>
         )}
         ListEmptyComponent={(
           <EmptyState
-            title="还没有参考小说"
-            action={<Button label="导入 TXT / Markdown / EPUB" onPress={() => void importBook()} disabled={busy} loading={busy} />}
+            title="No reference novels yet"
+            action={<Button label="Import TXT / Markdown / EPUB" onPress={() => void importBook()} disabled={busy} loading={busy} />}
           />
         )}
         renderItem={({ item }) => (
@@ -445,10 +445,10 @@ export function StyleLibraryScreen() {
             <View style={styles.bookIcon}><Ionicons name="book-outline" size={23} color={colors.primary} /></View>
             <View style={styles.sourceCopy}>
               <Text style={styles.sourceTitle} numberOfLines={1}>{item.title}</Text>
-              <Text style={styles.sourceMeta} numberOfLines={1}>{formatName(item)} · {formatBytes(item.sizeBytes)} · {item.characterCount.toLocaleString()} 字</Text>
+              <Text style={styles.sourceMeta} numberOfLines={1}>{formatName(item)} · {formatBytes(item.sizeBytes)} · {item.characterCount.toLocaleString()} chars</Text>
               <Text style={styles.sourceMeta} numberOfLines={1}>
-                {referenceProfiles.some((profile) => profile.sourceId === item.id) ? "已生成参考文风" : "尚未蒸馏文风"}
-                {(sourceTitleCounts.get(item.title) ?? 0) > 1 ? ` · 同名 ${sourceTitleCounts.get(item.title)} 份` : ""}
+                {referenceProfiles.some((profile) => profile.sourceId === item.id) ? "Reference style generated" : "No style distilled yet"}
+                {(sourceTitleCounts.get(item.title) ?? 0) > 1 ? ` · ${sourceTitleCounts.get(item.title)} with the same name` : ""}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={19} color={colors.textMuted} />
@@ -462,42 +462,42 @@ export function StyleLibraryScreen() {
             <View style={styles.sheetHeader}>
               <View style={styles.sheetTitleWrap}>
                 {editingSource ? (
-                  <Field label="参考书名称" value={sourceTitle} onChangeText={setSourceTitle} autoFocus />
+                  <Field label="Reference book name" value={sourceTitle} onChangeText={setSourceTitle} autoFocus />
                 ) : (
                   <>
                     <Text style={styles.sheetTitle} numberOfLines={2}>{selectedSource?.title}</Text>
-                    <Text style={styles.sheetMeta}>{selectedSource ? formatName(selectedSource) + " · " + formatBytes(selectedSource.sizeBytes) + " · " + selectedSource.characterCount.toLocaleString() + " 字" : ""}</Text>
+                    <Text style={styles.sheetMeta}>{selectedSource ? formatName(selectedSource) + " · " + formatBytes(selectedSource.sizeBytes) + " · " + selectedSource.characterCount.toLocaleString() + " chars" : ""}</Text>
                   </>
                 )}
               </View>
-              <Pressable accessibilityLabel="关闭参考书详情" onPress={closeSource} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close reference book details" onPress={closeSource} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
             <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
               {editingSource ? (
                 <View style={styles.inlineActions}>
-                  <Button label="取消" variant="secondary" onPress={() => setEditingSource(false)} />
-                  <Button label="保存名称" onPress={() => void saveSourceTitle()} disabled={!sourceTitle.trim()} loading={busy} />
+                  <Button label="Cancel" variant="secondary" onPress={() => setEditingSource(false)} />
+                  <Button label="Save name" onPress={() => void saveSourceTitle()} disabled={!sourceTitle.trim()} loading={busy} />
                 </View>
               ) : (
                 <View style={styles.inlineActions}>
                   <Button
-                    label={taskForSelectedSource ? "后台蒸馏中" : coverageStarted ? "继续蒸馏" : "蒸馏文风"}
+                    label={taskForSelectedSource ? "Distilling in background" : coverageStarted ? "Continue distilling" : "Distil style"}
                     onPress={() => void distill()}
                     disabled={busy || coverageFinished || Boolean(runningTask)}
                     loading={Boolean(taskForSelectedSource)}
                   />
                   {taskForSelectedSource ? (
-                    <Button label="取消蒸馏" variant="secondary" onPress={() => cancelStyleDistillation()} />
+                    <Button label="Cancel distillation" variant="secondary" onPress={() => cancelStyleDistillation()} />
                   ) : null}
                   {coverageStarted || distillationCheckpoint ? (
-                    <Button label="重新开始" variant="secondary" onPress={confirmRestart} disabled={busy || Boolean(runningTask)} />
+                    <Button label="Restart" variant="secondary" onPress={confirmRestart} disabled={busy || Boolean(runningTask)} />
                   ) : null}
-                  <Pressable accessibilityLabel="重命名参考书" onPress={() => setEditingSource(true)} style={styles.secondaryIconAction}>
+                  <Pressable accessibilityLabel="Rename reference book" onPress={() => setEditingSource(true)} style={styles.secondaryIconAction}>
                     <Ionicons name="create-outline" size={21} color={colors.text} />
                   </Pressable>
-                  <Pressable accessibilityLabel="删除参考书" onPress={confirmDeleteSource} style={styles.secondaryIconAction}>
+                  <Pressable accessibilityLabel="Delete reference book" onPress={confirmDeleteSource} style={styles.secondaryIconAction}>
                     <Ionicons name="trash-outline" size={21} color={colors.danger} />
                   </Pressable>
                 </View>
@@ -505,47 +505,47 @@ export function StyleLibraryScreen() {
               {distillationError ? <ErrorNotice message={distillationError} onRetry={() => void distill()} /> : null}
               {runningTask && !taskForSelectedSource ? (
                 <View style={styles.checkpointBox}>
-                  <Text style={styles.checkpointTitle}>正在蒸馏《{runningTask.sourceTitle}》</Text>
+                  <Text style={styles.checkpointTitle}>Distilling "{runningTask.sourceTitle}"</Text>
                   <Text style={styles.checkpointText}>
-                    同一时间只跑一个蒸馏任务；等它完成或到横幅上取消后，再开始这本书。
+                    Only one distillation task runs at a time; wait for it to finish or cancel it from the banner before starting this book.
                   </Text>
                 </View>
               ) : null}
               {distillationCoverage ? (
                 <View style={styles.checkpointBox}>
                   <Text style={styles.checkpointTitle}>
-                    {coverageFinished ? "已覆盖全书" : `已完成 ${distillationCoverage.rounds} 轮蒸馏`}
+                    {coverageFinished ? "Whole book covered" : `${distillationCoverage.rounds} rounds distilled`}
                   </Text>
                   <Text style={styles.checkpointText}>
-                    覆盖到第 {distillationCoverage.coveredUntil}/{distillationCoverage.totalUnits} {coverageUnitName}。
+                    Covered up to {distillationCoverage.coveredUntil}/{distillationCoverage.totalUnits} {coverageUnitName}.
                     {coverageFinished
-                      ? "继续积累样本请点击“重新开始”重新扫描全书，这会用新结果替换当前参考文风。"
-                      : "点击“继续蒸馏”会向后随机跳到未读区域，再取一段连续样本并入同一份参考文风。"}
+                      ? "To gather more samples, tap Restart to rescan the whole book; this replaces the current reference style with the new result."
+                      : "Tapping Continue distilling jumps randomly forward into unread regions and takes another continuous sample to merge into the same reference style."}
                   </Text>
                 </View>
               ) : null}
               {distillationCheckpoint ? (
                 <View style={styles.checkpointBox}>
-                  <Text style={styles.checkpointTitle}>检测到未完成的蒸馏任务</Text>
+                  <Text style={styles.checkpointTitle}>An unfinished distillation task was found</Text>
                   <Text style={styles.checkpointText}>
-                    第 {distillationCheckpoint.windowStart + 1}-{distillationCheckpoint.windowStart + distillationCheckpoint.windowCount} {coverageUnitName}已完成 {Math.min(distillationCheckpoint.completedMemos.length, distillationCheckpoint.batchCount)}/{distillationCheckpoint.batchCount} 批。继续蒸馏会从断点接着跑，不会重复已完成批次。
+                    {coverageUnitName} {distillationCheckpoint.windowStart + 1}-{distillationCheckpoint.windowStart + distillationCheckpoint.windowCount} has completed {Math.min(distillationCheckpoint.completedMemos.length, distillationCheckpoint.batchCount)}/{distillationCheckpoint.batchCount} batches. Continuing resumes from the checkpoint without repeating completed batches.
                   </Text>
                 </View>
               ) : null}
               {taskForSelectedSource ? (
                 <View style={styles.checkpointBox}>
-                  <Text style={styles.checkpointTitle}>蒸馏进行中：{taskForSelectedSource.label}</Text>
+                  <Text style={styles.checkpointTitle}>Distillation in progress: {taskForSelectedSource.label}</Text>
                   <Text style={styles.checkpointText}>
-                    可以关掉这个窗口或离开文风书库，任务会在后台继续，跑完在这里提示结果。
+                    You can close this window or leave the style library; the task continues in the background and reports its result here.
                   </Text>
                 </View>
               ) : (
-                <Text style={styles.helperText}>每轮抽取连续 24 {coverageUnitName}、分 4 批分析后并入参考文风，不会上传整本小说。反复点击“继续蒸馏”会向后随机推进，逐步覆盖全书；每本书始终只有一份参考文风。</Text>
+                <Text style={styles.helperText}>Each round samples 24 consecutive {coverageUnitName}, analyses them in 4 batches and merges them into the reference style; the whole novel is never uploaded. Tapping Continue distilling repeatedly advances randomly forward, gradually covering the whole book; each book always has exactly one reference style.</Text>
               )}
               <Text style={styles.helperText}>
-                蒸馏使用“设置 → 模型与供应商”里的默认模型：{distillationModelName ?? "尚未选择默认模型"}
+                Distillation uses the default model in Settings → Models & providers: {distillationModelName ?? "no default model chosen yet"}
               </Text>
-              <Text style={styles.sectionTitle}>参考文风</Text>
+              <Text style={styles.sectionTitle}>Reference styles</Text>
               {sourceProfiles.length ? sourceProfiles.map((profile) => (
                 <ProfileRow
                   key={profile.id}
@@ -555,7 +555,7 @@ export function StyleLibraryScreen() {
                   onActivate={() => void activate(profile)}
                   disabled={busy || !projectId}
                 />
-              )) : <Text style={styles.emptyHint}>还没有参考文风，点击“蒸馏文风”生成。</Text>}
+              )) : <Text style={styles.emptyHint}>No reference style yet; tap Distil style to generate one.</Text>}
             </ScrollView>
           </View>
         </SheetBackdrop>
@@ -569,26 +569,26 @@ export function StyleLibraryScreen() {
                 <Text style={styles.sheetTitle} numberOfLines={2}>{selectedProfile ? styleProfileLabel(selectedProfile) : ""}</Text>
                 <Text style={styles.sheetMeta}>
                   {selectedProfile?.kind === "author"
-                    ? "作者文风版本"
+                    ? "Author style version"
                     : selectedProfileSource
-                      ? `参考小说文风 · ${selectedProfileSource.format === "epub" ? "EPUB" : selectedProfileSource.format === "markdown" ? "Markdown" : "TXT"} · ${selectedProfileSource.characterCount.toLocaleString()} 字`
-                      : "参考小说文风（对应参考书已删除）"}
+                      ? `Reference-novel style · ${selectedProfileSource.format === "epub" ? "EPUB" : selectedProfileSource.format === "markdown" ? "Markdown" : "TXT"} · ${selectedProfileSource.characterCount.toLocaleString()} chars`
+                      : "Reference-novel style (the source book was deleted)"}
                 </Text>
               </View>
-              <Pressable accessibilityLabel="关闭文风详情" onPress={() => setSelectedProfile(null)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close style details" onPress={() => setSelectedProfile(null)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
             <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.profileContent}>
               {selectedProfile?.kind === "author" && editingAuthorGuide ? (
-                <Field label="作者文风指南" value={authorGuide} onChangeText={setAuthorGuide} multiline style={styles.guideInput} maxLength={100000} />
+                <Field label="Author style guide" value={authorGuide} onChangeText={setAuthorGuide} multiline style={styles.guideInput} maxLength={100000} />
               ) : (
                 <Text selectable style={styles.guideText}>{selectedProfile?.guide}</Text>
               )}
               <View style={styles.inlineActions}>
                 {selectedProfile?.kind === "author" ? (
                   <Button
-                    label={editingAuthorGuide ? "保存新版本" : "编辑指南"}
+                    label={editingAuthorGuide ? "Save new version" : "Edit guide"}
                     onPress={() => {
                       if (editingAuthorGuide) void saveAuthor();
                       else setEditingAuthorGuide(true);
@@ -598,12 +598,12 @@ export function StyleLibraryScreen() {
                   />
                 ) : null}
                 <Button
-                  label={activeProfile?.id === selectedProfile?.id ? "已在使用" : "用于创作"}
+                  label={activeProfile?.id === selectedProfile?.id ? "In use" : "Use for writing"}
                   variant={activeProfile?.id === selectedProfile?.id ? "secondary" : "primary"}
                   onPress={() => void activate(selectedProfile)}
                   disabled={busy || !projectId || activeProfile?.id === selectedProfile?.id}
                 />
-                <Pressable accessibilityLabel="删除文风版本" onPress={() => selectedProfile && removeProfile(selectedProfile)} style={styles.secondaryIconAction}>
+                <Pressable accessibilityLabel="Delete style version" onPress={() => selectedProfile && removeProfile(selectedProfile)} style={styles.secondaryIconAction}>
                   <Ionicons name="trash-outline" size={21} color={colors.danger} />
                 </Pressable>
               </View>
@@ -637,8 +637,8 @@ function ProfileRow({
           <Text style={styles.profileMeta} numberOfLines={2}>{profile.guide.slice(0, 120).replace(/\s+/g, " ")}</Text>
         </View>
       </Pressable>
-      <Pressable accessibilityLabel={active ? "当前使用的文风" : "使用这个文风"} onPress={onActivate} disabled={disabled || active} style={styles.useButton}>
-        <Text style={[styles.useButtonText, active && styles.useButtonTextActive]}>{active ? "使用中" : "使用"}</Text>
+      <Pressable accessibilityLabel={active ? "Currently used style" : "Use this style"} onPress={onActivate} disabled={disabled || active} style={styles.useButton}>
+        <Text style={[styles.useButtonText, active && styles.useButtonTextActive]}>{active ? "In use" : "Use"}</Text>
       </Pressable>
     </View>
   );

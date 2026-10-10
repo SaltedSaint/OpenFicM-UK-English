@@ -13,7 +13,7 @@ function isRecord(value: unknown): value is Record<string, any> {
 
 function normalizeBaseUrl(value: string): string {
   const normalized = value.trim().replace(/\/+$/, "");
-  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) throw new Error("模型 Base URL 无效");
+  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) throw new Error("Model Base URL is invalid");
   return normalized;
 }
 
@@ -27,7 +27,7 @@ async function fetchJson(url: string, headers: Record<string, string>): Promise<
     try {
       data = text ? JSON.parse(text) : {};
     } catch {
-      throw new Error("供应商返回了无法解析的模型列表");
+      throw new Error("The provider returned an unparseable model list");
     }
     if (!response.ok) {
       const detail = isRecord(data) && isRecord(data.error)
@@ -35,11 +35,11 @@ async function fetchJson(url: string, headers: Record<string, string>): Promise<
         : isRecord(data) ? data.message : text;
       throw new Error(`${response.status}: ${detail || response.statusText}`);
     }
-    if (!isRecord(data)) throw new Error("供应商返回的模型列表格式无效");
+    if (!isRecord(data)) throw new Error("The provider's model list has an invalid format");
     return data;
   } catch (error) {
-    if (isRecord(error) && error.name === "AbortError") throw new Error("获取模型列表超时");
-    if (error instanceof TypeError) throw new Error("无法连接供应商，请检查网络、Base URL 和证书");
+    if (isRecord(error) && error.name === "AbortError") throw new Error("Timed out while fetching the model list");
+    if (error instanceof TypeError) throw new Error("Cannot reach the provider; check your network, Base URL and certificate");
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -55,7 +55,7 @@ function uniqueModels(models: RemoteModel[]): RemoteModel[] {
 }
 
 export async function fetchProviderModels(provider: Provider, apiKey: string): Promise<RemoteModel[]> {
-  if (!apiKey.trim()) throw new Error("供应商没有可用的 API Key");
+  if (!apiKey.trim()) throw new Error("The provider has no usable API key");
   const baseUrl = normalizeBaseUrl(provider.baseUrl);
   if (provider.type === "google-genai") {
     const data = await fetchJson(`${baseUrl}/models?pageSize=1000`, { "x-goog-api-key": apiKey });

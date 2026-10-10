@@ -74,7 +74,7 @@ const catalogSchema = z.object({
   agents: z.array(catalogAgentSchema).min(1),
 }).superRefine((catalog, context) => {
   if (!catalog.agents.some((agent) => agent.kind === "primary")) {
-    context.addIssue({ code: "custom", message: "基础内容包缺少主智能体" });
+    context.addIssue({ code: "custom", message: "The base content pack is missing a primary agent" });
   }
 });
 
@@ -122,11 +122,11 @@ export type LocalModelKind = "embedding" | "rerank";
 
 export const LOCAL_MODEL_INFO = {
   embedding: {
-    name: "BGE small zh v1.5 Q4_K_M",
-    fileName: "bge-small-zh-v1.5-q4_k_m.gguf",
-    url: "https://huggingface.co/CompendiumLabs/bge-small-zh-v1.5-gguf/resolve/main/bge-small-zh-v1.5-q4_k_m.gguf",
-    bytes: 15_448_256,
-    sha256: "0c17cc6ed7ec697db6768c2db6dd22c4e816a12c68ed14ff4d764927338532f8",
+    name: "BGE small en v1.5 Q4_K_M",
+    fileName: "bge-small-en-v1.5-q4_k_m.gguf",
+    url: "https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q4_k_m.gguf",
+    bytes: 24_808_576,
+    sha256: "363a0a4855dff6c653e06efe3209157debcf7f74e52d0d7c71e2747cd523043e",
   },
   rerank: {
     name: "BGE reranker base Q4_K_M",
@@ -208,18 +208,18 @@ async function fetchText(url: string, maximumBytes: number): Promise<string> {
         headers: { Accept: "text/plain", "User-Agent": "OpenFicM-Android" },
       });
       const content = await response.text();
-      if (!response.ok) throw new Error(`下载失败 HTTP ${response.status}: ${content.slice(0, 240) || response.statusText}`);
-      if (textBytes(content) > maximumBytes) throw new Error(`远程内容超过 ${maximumBytes} 字节限制`);
+      if (!response.ok) throw new Error(`Download failed HTTP ${response.status}: ${content.slice(0, 240) || response.statusText}`);
+      if (textBytes(content) > maximumBytes) throw new Error(`Remote content exceeds the ${maximumBytes}-byte limit`);
       return content.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
     } catch (error) {
-      lastError = error instanceof Error && error.name === "AbortError" ? new Error("下载远程内容超时") : error;
+      lastError = error instanceof Error && error.name === "AbortError" ? new Error("Timed out downloading remote content") : error;
       if (attempt + 1 >= MAX_FETCH_ATTEMPTS) break;
       await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
     } finally {
       clearTimeout(timeout);
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("下载远程内容失败");
+  throw lastError instanceof Error ? lastError : new Error("Failed to download remote content");
 }
 
 function rawGitHubUrl(repository: string, commit: string, path: string): string {
@@ -242,7 +242,7 @@ function mobileLornPolicy(): string {
 function buildLornDistillationInstructions(documents: Map<string, string>): string {
   const mainPath = LORN_SOURCE_PATHS[0];
   const main = documents.get(mainPath);
-  if (!main) throw new Error("Lorn 蒸馏主 Skill 缺失");
+  if (!main) throw new Error("The main Lorn distillation skill is missing");
   const references = LORN_SOURCE_PATHS.slice(1).map((path) => {
     const content = documents.get(path);
     if (!content) throw new Error(`Lorn reference 缺失: ${path}`);
@@ -293,7 +293,7 @@ export function compactLornDistillationInstructions(
 export async function getLornDistillationInstructions(): Promise<string> {
   const installed = await getInstalledLornStylePackage();
   const skill = installed?.skills.find((item) => item.id === "plugin-lorn-style--distillation");
-  if (!skill) throw new Error("Lorn 文风蒸馏 Skill 尚未安装，请先修复运行资源");
+  if (!skill) throw new Error("The Lorn style-distillation skill is not installed yet; repair the runtime resources first");
   return compactLornDistillationInstructions(skill.instructions
     .replace(
       /原文中的 Agents\.md 注册、蒸馏产物目录和作者风格模板文件统一映射为 save_author_style_guide；最终必须把完整 Markdown 指南保存到当前作品。/g,
@@ -317,10 +317,10 @@ export async function getInstalledLornStylePackage(): Promise<LornStylePackage |
 }
 
 async function installOpenFicMCatalog(onProgress?: (progress: ResourceInstallProgress) => void): Promise<void> {
-  onProgress?.({ stage: "openficm-content", label: "下载 OpenFicM 基础 Agent/Skill", completed: 0, total: 1 });
+  onProgress?.({ stage: "openficm-content", label: "Download the OpenFicM base agents/skills", completed: 0, total: 1 });
   const content = await fetchText(OPENFICM_CATALOG_URL, OPENFICM_CATALOG_MAX_BYTES);
   const sha256 = await sha256Text(content);
-  if (sha256 !== OPENFICM_CATALOG_SHA256) throw new Error("OpenFicM 基础内容包 SHA-256 校验失败");
+  if (sha256 !== OPENFICM_CATALOG_SHA256) throw new Error("The OpenFicM base content pack failed SHA-256 verification");
   const catalog = catalogSchema.parse(JSON.parse(content));
   await setSetting(OPENFICM_CATALOG_KEY, JSON.stringify({
     source: "openficm-github",
@@ -329,23 +329,23 @@ async function installOpenFicMCatalog(onProgress?: (progress: ResourceInstallPro
     sha256,
     catalog,
   }));
-  onProgress?.({ stage: "openficm-content", label: "OpenFicM 基础 Agent/Skill 已安装", completed: 1, total: 1 });
+  onProgress?.({ stage: "openficm-content", label: "OpenFicM base agents/skills installed", completed: 1, total: 1 });
 }
 
 async function installLornStylePackage(onProgress?: (progress: ResourceInstallProgress) => void): Promise<void> {
   const mobileCatalogText = await fetchText(LORN_MOBILE_CATALOG_URL, 50_000);
   if (await sha256Text(mobileCatalogText) !== LORN_MOBILE_CATALOG_SHA256) {
-    throw new Error("Lorn 移动端目录 SHA-256 校验失败");
+    throw new Error("The Lorn mobile catalogue failed SHA-256 verification");
   }
   const mobileCatalog = lornMobileCatalogSchema.parse(JSON.parse(mobileCatalogText));
   const documents = new Map<string, string>();
   let packageBytes = textBytes(mobileCatalogText);
   for (let index = 0; index < LORN_SOURCE_PATHS.length; index += 1) {
     const path = LORN_SOURCE_PATHS[index];
-    onProgress?.({ stage: "lorn-style", label: `下载 Lorn：${path.split("/").at(-1)}`, completed: index, total: LORN_SOURCE_PATHS.length });
+    onProgress?.({ stage: "lorn-style", label: `Downloading Lorn: ${path.split("/").at(-1)}`, completed: index, total: LORN_SOURCE_PATHS.length });
     const content = await fetchText(rawGitHubUrl(LORN_REPOSITORY, LORN_COMMIT, path), MAX_LORN_FILE_BYTES);
     packageBytes += textBytes(content);
-    if (packageBytes > MAX_LORN_PACKAGE_BYTES) throw new Error(`Lorn 文风包超过 ${MAX_LORN_PACKAGE_BYTES} 字节限制`);
+    if (packageBytes > MAX_LORN_PACKAGE_BYTES) throw new Error(`The Lorn style pack exceeds the ${MAX_LORN_PACKAGE_BYTES}-byte limit`);
     documents.set(path, content);
   }
   const sourceHash = [...documents.entries()]
@@ -354,12 +354,12 @@ async function installLornStylePackage(onProgress?: (progress: ResourceInstallPr
     .join("\n\u0000\n");
   const distillationMetadata = mobileCatalog.skills.find((skill) => skill.id === "plugin-lorn-style--distillation");
   const evolutionSkill = mobileCatalog.skills.find((skill) => skill.id === "plugin-lorn-style--evolution");
-  if (!distillationMetadata || !evolutionSkill) throw new Error("Lorn 移动端目录缺少必需 Skill");
+  if (!distillationMetadata || !evolutionSkill) throw new Error("The Lorn mobile catalogue is missing a required skill");
   const skills: AgentSkill[] = [
     {
       ...distillationMetadata,
-      name: "Lorn 原版作者文风蒸馏",
-      description: "基于 Lorn.NovelWriteSkills 原版主 Skill 与白名单 references，从导入参考书中蒸馏出该书的参考文风。",
+      name: "Lorn original author style distillation",
+      description: "Distils a book's reference style from an imported reference book, based on the original Lorn.NovelWriteSkills main skill and its allow-listed references.",
       instructions: buildLornDistillationInstructions(documents),
       source: "plugin",
     },
@@ -376,25 +376,25 @@ async function installLornStylePackage(onProgress?: (progress: ResourceInstallPr
     skills,
   });
   await setSetting(LORN_PACKAGE_KEY, JSON.stringify(packageValue));
-  onProgress?.({ stage: "lorn-style", label: "Lorn 原版文风 Skill 已安装", completed: LORN_SOURCE_PATHS.length, total: LORN_SOURCE_PATHS.length });
+  onProgress?.({ stage: "lorn-style", label: "Lorn original style skills installed", completed: LORN_SOURCE_PATHS.length, total: LORN_SOURCE_PATHS.length });
 }
 
 async function verifyModel(kind: LocalModelKind, onProgress?: (bytesRead: number, totalBytes: number) => void): Promise<ResourceItemState> {
   const info = LOCAL_MODEL_INFO[kind];
   const file = getLocalModelFile(kind);
   const base = { id: kind, label: info.name, bytes: info.bytes } as const;
-  if (!file.exists) return { ...base, status: "missing", detail: "尚未下载" };
-  if (file.size !== info.bytes) return { ...base, status: "incomplete", detail: `文件大小异常：${file.size}/${info.bytes}` };
+  if (!file.exists) return { ...base, status: "missing", detail: "Not downloaded" };
+  if (file.size !== info.bytes) return { ...base, status: "incomplete", detail: `Abnormal file size: ${file.size}/${info.bytes}` };
   const cached = modelVerificationSchema.safeParse(await readStoredJson(verificationKey(kind)));
   if (cached.success
     && cached.data.fileName === info.fileName
     && cached.data.bytes === info.bytes
     && cached.data.sha256 === info.sha256
     && cached.data.lastModified === file.lastModified) {
-    return { ...base, status: "ready", detail: "完整性已验证" };
+    return { ...base, status: "ready", detail: "Integrity verified" };
   }
   const sha256 = await sha256File(file, onProgress);
-  if (sha256 !== info.sha256) return { ...base, status: "incomplete", detail: "SHA-256 校验失败" };
+  if (sha256 !== info.sha256) return { ...base, status: "incomplete", detail: "SHA-256 verification failed" };
   await setSetting(verificationKey(kind), JSON.stringify({
     fileName: info.fileName,
     bytes: info.bytes,
@@ -402,7 +402,7 @@ async function verifyModel(kind: LocalModelKind, onProgress?: (bytesRead: number
     lastModified: file.lastModified,
     verifiedAt: new Date().toISOString(),
   }));
-  return { ...base, status: "ready", detail: "完整性已验证" };
+  return { ...base, status: "ready", detail: "Integrity verified" };
 }
 
 function hfMirrorUrl(url: string): string {
@@ -424,7 +424,7 @@ async function downloadModel(kind: LocalModelKind, onProgress?: (progress: Resou
       headers: { Accept: "application/octet-stream", "User-Agent": "OpenFicM-Android" },
       onProgress: ({ bytesWritten, totalBytes }) => onProgress?.({
         stage: kind,
-        label: `下载 ${info.name}${url === info.url ? "" : "（镜像）"}`,
+        label: `Downloading ${info.name}${url === info.url ? "" : " (mirror)"}`,
         completed: 0,
         total: 1,
         bytesWritten,
@@ -433,18 +433,18 @@ async function downloadModel(kind: LocalModelKind, onProgress?: (progress: Resou
     });
     try {
       const downloaded = await task.downloadAsync();
-      if (!downloaded) throw new Error(`${info.name} 下载被暂停`);
-      if (downloaded.size !== info.bytes) throw new Error(`${info.name} 下载不完整：${downloaded.size}/${info.bytes}`);
-      onProgress?.({ stage: kind, label: `校验 ${info.name}`, completed: 0, total: 1, bytesWritten: 0, totalBytes: info.bytes });
+      if (!downloaded) throw new Error(`${info.name} download was paused`);
+      if (downloaded.size !== info.bytes) throw new Error(`${info.name} download incomplete: ${downloaded.size}/${info.bytes}`);
+      onProgress?.({ stage: kind, label: `Verifying ${info.name}`, completed: 0, total: 1, bytesWritten: 0, totalBytes: info.bytes });
       const sha256 = await sha256File(downloaded, (bytesRead, totalBytes) => onProgress?.({
         stage: kind,
-        label: `校验 ${info.name}`,
+        label: `Verifying ${info.name}`,
         completed: 0,
         total: 1,
         bytesWritten: bytesRead,
         totalBytes,
       }));
-      if (sha256 !== info.sha256) throw new Error(`${info.name} SHA-256 校验失败`);
+      if (sha256 !== info.sha256) throw new Error(`${info.name} failed SHA-256 verification`);
       if (target.exists) target.delete();
       await downloaded.move(target);
       await setSetting(verificationKey(kind), JSON.stringify({
@@ -454,7 +454,7 @@ async function downloadModel(kind: LocalModelKind, onProgress?: (progress: Resou
         lastModified: target.lastModified,
         verifiedAt: new Date().toISOString(),
       }));
-      onProgress?.({ stage: kind, label: `${info.name} 已就绪`, completed: 1, total: 1, bytesWritten: info.bytes, totalBytes: info.bytes });
+      onProgress?.({ stage: kind, label: `${info.name} ready`, completed: 1, total: 1, bytesWritten: info.bytes, totalBytes: info.bytes });
       return;
     } catch (error) {
       lastError = error;
@@ -463,7 +463,7 @@ async function downloadModel(kind: LocalModelKind, onProgress?: (progress: Resou
       task.release();
     }
   }
-  throw lastError instanceof Error ? lastError : new Error(`${info.name} 下载失败`);
+  throw lastError instanceof Error ? lastError : new Error(`${info.name} download failed`);
 }
 
 export async function getRuntimeResourceState(): Promise<RuntimeResourceState> {
@@ -477,21 +477,21 @@ export async function getRuntimeResourceState(): Promise<RuntimeResourceState> {
   const items: ResourceItemState[] = [
     {
       id: "openficm-content",
-      label: "OpenFicM 基础 Agent/Skill",
+      label: "OpenFicM base agents/skills",
       status: catalog ? "ready" : "missing",
-      detail: catalog ? `${catalog.agents.length} 个智能体 · ${catalog.skills.length} 个技能` : "尚未安装或校验失败",
+      detail: catalog ? `${catalog.agents.length} agents · ${catalog.skills.length} skills` : "Not installed or verification failed",
     },
     {
       id: "oh-story",
       label: "oh-story Agent/Skill",
       status: ohStory ? "ready" : "missing",
-      detail: ohStory ? `${ohStory.version} · ${ohStory.agents.length} 个智能体 · ${ohStory.skills.length} 个技能` : "尚未安装",
+      detail: ohStory ? `${ohStory.version} · ${ohStory.agents.length} agents · ${ohStory.skills.length} skills` : "Not installed",
     },
     {
       id: "lorn-style",
-      label: "Lorn 原版文风 Skill",
+      label: "Lorn original style skills",
       status: lorn ? "ready" : "missing",
-      detail: lorn ? `${lorn.commitSha.slice(0, 8)} · ${lorn.skills.length} 个技能` : "尚未安装",
+      detail: lorn ? `${lorn.commitSha.slice(0, 8)} · ${lorn.skills.length} skills` : "Not installed",
     },
     embedding,
     rerank,
@@ -514,27 +514,27 @@ export async function installMissingRuntimeResources(
   };
 
   if (before.missing.some((item) => item.id === "openficm-content")) {
-    await run("OpenFicM 基础内容", () => installOpenFicMCatalog(onProgress));
+    await run("OpenFicM base content", () => installOpenFicMCatalog(onProgress));
   }
   if (before.missing.some((item) => item.id === "oh-story")) {
     await run("oh-story", async () => {
-      onProgress?.({ stage: "oh-story", label: "检查 GitHub Release", completed: 0, total: 1 });
+      onProgress?.({ stage: "oh-story", label: "Checking the GitHub release", completed: 0, total: 1 });
       const release = await checkOhStoryRelease();
       await installOhStoryRelease(release, ({ completed, total, label }) => onProgress?.({
-        stage: "oh-story", label: `下载 oh-story：${label}`, completed, total,
+        stage: "oh-story", label: `Downloading oh-story: ${label}`, completed, total,
       }));
-      onProgress?.({ stage: "oh-story", label: `oh-story ${release.version} 已安装`, completed: 1, total: 1 });
+      onProgress?.({ stage: "oh-story", label: `oh-story ${release.version} installed`, completed: 1, total: 1 });
     });
   }
   if (before.missing.some((item) => item.id === "lorn-style")) {
-    await run("Lorn 文风包", () => installLornStylePackage(onProgress));
+    await run("Lorn style pack", () => installLornStylePackage(onProgress));
   }
 
   const missingModelBytes = before.missing
     .filter((item): item is ResourceItemState & { id: LocalModelKind } => item.id === "embedding" || item.id === "rerank")
     .reduce((total, item) => total + LOCAL_MODEL_INFO[item.id].bytes, 0);
   if (missingModelBytes && Paths.availableDiskSpace < missingModelBytes + DOWNLOAD_SPACE_RESERVE) {
-    errors.push(`本地模型：存储空间不足，至少需要 ${Math.ceil((missingModelBytes + DOWNLOAD_SPACE_RESERVE) / 1024 / 1024)} MB 可用空间`);
+    errors.push(`Local models: not enough space; at least ${Math.ceil((missingModelBytes + DOWNLOAD_SPACE_RESERVE) / 1024 / 1024)} MB free is required`);
   } else {
     for (const kind of ["embedding", "rerank"] as const) {
       if (before.missing.some((item) => item.id === kind)) {
@@ -545,9 +545,9 @@ export async function installMissingRuntimeResources(
 
   const after = await getRuntimeResourceState();
   if (errors.length || !after.ready) {
-    const missing = after.missing.map((item) => item.label).join("、");
-    throw new Error([...errors, missing ? `仍缺少：${missing}` : ""].filter(Boolean).join("\n"));
+    const missing = after.missing.map((item) => item.label).join(", ");
+    throw new Error([...errors, missing ? `Still missing: ${missing}` : ""].filter(Boolean).join("\n"));
   }
-  onProgress?.({ stage: "complete", label: "全部运行资源已就绪", completed: 1, total: 1 });
+  onProgress?.({ stage: "complete", label: "All runtime resources are ready", completed: 1, total: 1 });
   return after;
 }

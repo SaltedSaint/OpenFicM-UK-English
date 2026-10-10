@@ -1,7 +1,7 @@
 import { initLlama, type LlamaContext } from "llama.rn";
 import { getLocalModelFile, LOCAL_MODEL_INFO } from "@/settings/remote-resources";
 
-const QUERY_PREFIX = "为这个句子生成表示以用于检索相关文章：";
+const QUERY_PREFIX = "Represent this sentence for searching relevant passages: ";
 const MAX_MODEL_INPUT_CHARACTERS = 440;
 
 let embeddingContextPromise: Promise<LlamaContext> | null = null;
@@ -9,7 +9,7 @@ let rerankContextPromise: Promise<LlamaContext> | null = null;
 
 function createEmbeddingContext(): Promise<LlamaContext> {
   const model = getLocalModelFile("embedding");
-  if (!model.exists || model.size !== LOCAL_MODEL_INFO.embedding.bytes) throw new Error("嵌入模型尚未下载或文件不完整，请先在启动提示中一键拉取");
+  if (!model.exists || model.size !== LOCAL_MODEL_INFO.embedding.bytes) throw new Error("The embedding model is not downloaded or the file is incomplete; fetch it with the one-tap setup first");
   return Promise.resolve(initLlama({
     model: model.uri,
     embedding: true,
@@ -24,7 +24,7 @@ function createEmbeddingContext(): Promise<LlamaContext> {
 
 function createRerankContext(): Promise<LlamaContext> {
   const model = getLocalModelFile("rerank");
-  if (!model.exists || model.size !== LOCAL_MODEL_INFO.rerank.bytes) throw new Error("重排模型尚未下载或文件不完整，请先在启动提示中一键拉取");
+  if (!model.exists || model.size !== LOCAL_MODEL_INFO.rerank.bytes) throw new Error("The rerank model is not downloaded or the file is incomplete; fetch it with the one-tap setup first");
   return Promise.resolve(initLlama({
     model: model.uri,
     embedding: true,

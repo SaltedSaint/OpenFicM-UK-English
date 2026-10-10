@@ -50,7 +50,7 @@ export function CharactersScreen() {
     setError(null);
     try {
       const [nextProject, nextCharacters] = await Promise.all([getProject(projectId), listCharacters(projectId, query)]);
-      if (!nextProject) throw new Error("作品不存在");
+      if (!nextProject) throw new Error("Project not found");
       setProject(nextProject);
       setCharacters(nextCharacters);
     } catch (loadError) {
@@ -97,10 +97,10 @@ export function CharactersScreen() {
   };
 
   const remove = (character: Character) => {
-    Alert.alert("删除角色", `确定删除“${character.name}”吗？`, [
-      { text: "取消", style: "cancel" },
+    Alert.alert("Delete character", `Delete "${character.name}"?`, [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "删除",
+        text: "Delete",
         style: "destructive",
         onPress: () => {
           void deleteCharacter(character.id)
@@ -125,8 +125,8 @@ export function CharactersScreen() {
   };
 
   const chooseExport = (items: Character[], title: string) => {
-    Alert.alert(title, "选择导出格式", [
-      { text: "取消", style: "cancel" },
+    Alert.alert(title, "Choose an export format", [
+      { text: "Cancel", style: "cancel" },
       { text: "JSON", onPress: () => void runExport(items, "json") },
       { text: "Markdown", onPress: () => void runExport(items, "markdown") },
     ]);
@@ -144,38 +144,38 @@ export function CharactersScreen() {
 
   const chooseBulkExport = () => {
     if (!projectId || !project || exporting) return;
-    Alert.alert("导出全部角色", "选择导出格式", [
-      { text: "取消", style: "cancel" },
+    Alert.alert("Export all characters", "Choose an export format", [
+      { text: "Cancel", style: "cancel" },
       { text: "JSON", onPress: () => void exportAll("json") },
       { text: "Markdown", onPress: () => void exportAll("markdown") },
     ]);
   };
 
-  if (!projectId) return <Screen><Header title="角色" onBack={() => navigation.goBack()} /><EmptyState title="请先从书架打开一部作品" /></Screen>;
+  if (!projectId) return <Screen><Header title="Characters" onBack={() => navigation.goBack()} /><EmptyState title="Open a project from the shelf first" /></Screen>;
 
   return (
     <Screen>
       <Header
-        title="角色"
+        title="Characters"
         onBack={() => navigation.goBack()}
         action={(
           <View style={styles.headerActions}>
-            <Pressable accessibilityLabel="批量导出角色" disabled={exporting} onPress={chooseBulkExport} style={styles.iconButton}>
+            <Pressable accessibilityLabel="Export all characters" disabled={exporting} onPress={chooseBulkExport} style={styles.iconButton}>
               {exporting ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="download-outline" size={22} color={colors.primary} />}
             </Pressable>
-            <Pressable accessibilityLabel="新建角色" onPress={() => openEditor()} style={styles.iconButton}><Ionicons name="add" size={26} color={colors.primary} /></Pressable>
+            <Pressable accessibilityLabel="New character" onPress={() => openEditor()} style={styles.iconButton}><Ionicons name="add" size={26} color={colors.primary} /></Pressable>
           </View>
         )}
       />
       <View style={styles.searchWrap}>
-        <Field label="搜索角色" value={query} onChangeText={setQuery} placeholder="按名称或设定搜索" returnKeyType="search" />
+        <Field label="Search characters" value={query} onChangeText={setQuery} placeholder="Search by name or profile" returnKeyType="search" />
       </View>
       {error ? <View style={styles.errorWrap}><ErrorNotice message={error} onRetry={() => void load()} /></View> : null}
       <FlatList
         data={characters}
         keyExtractor={(item) => item.id}
         contentContainerStyle={characters.length ? styles.list : styles.emptyList}
-        ListEmptyComponent={loading ? <ActivityIndicator color={colors.primary} /> : <EmptyState title="还没有角色" action={<Button label="新建角色" onPress={() => openEditor()} />} />}
+        ListEmptyComponent={loading ? <ActivityIndicator color={colors.primary} /> : <EmptyState title="No characters yet" action={<Button label="New character" onPress={() => openEditor()} />} />}
         renderItem={({ item }) => (
           <Pressable onPress={() => openEditor(item)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
             <View style={styles.avatar}><Text style={styles.avatarText}>{item.name.slice(0, 1)}</Text></View>
@@ -184,13 +184,13 @@ export function CharactersScreen() {
                 <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
                 {item.isFavorited ? <Ionicons name="star" size={16} color={colors.accent} /> : null}
               </View>
-              <Text numberOfLines={3} style={styles.description}>{item.description || "暂无角色设定"}</Text>
+              <Text numberOfLines={3} style={styles.description}>{item.description || "No character profile yet"}</Text>
             </View>
             <View style={styles.rowActions}>
-              <Pressable accessibilityLabel={`导出角色 ${item.name}`} disabled={exporting} onPress={(event) => { event.stopPropagation(); chooseExport([item], `导出角色“${item.name}”`); }} hitSlop={8} style={styles.iconButton}>
+              <Pressable accessibilityLabel={`Export character ${item.name}`} disabled={exporting} onPress={(event) => { event.stopPropagation(); chooseExport([item], `Export character "${item.name}"`); }} hitSlop={8} style={styles.iconButton}>
                 <Ionicons name="download-outline" size={19} color={colors.textMuted} />
               </Pressable>
-              <Pressable accessibilityLabel="删除角色" onPress={(event) => { event.stopPropagation(); remove(item); }} hitSlop={8} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Delete character" onPress={(event) => { event.stopPropagation(); remove(item); }} hitSlop={8} style={styles.iconButton}>
                 <Ionicons name="trash-outline" size={19} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -202,8 +202,8 @@ export function CharactersScreen() {
         <KeyboardAvoidingView style={styles.modalBackdrop} behavior="height" automaticOffset>
           <View style={styles.modalBody}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editing ? "编辑角色" : "新建角色"}</Text>
-              <Pressable accessibilityLabel="关闭角色编辑" onPress={() => setEditorVisible(false)} style={styles.iconButton}>
+              <Text style={styles.modalTitle}>{editing ? "Edit character" : "New character"}</Text>
+              <Pressable accessibilityLabel="Close character editor" onPress={() => setEditorVisible(false)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -215,15 +215,15 @@ export function CharactersScreen() {
               extraKeyboardSpace={spacing.md}
               contentContainerStyle={styles.form}
             >
-              <Field label="角色名称" value={name} onChangeText={setName} autoFocus={!editing} />
-              <Field label="角色设定" value={description} onChangeText={setDescription} multiline textAlignVertical="top" style={styles.descriptionInput} placeholder="外貌、性格、经历、关系和写作注意事项" />
+              <Field label="Character name" value={name} onChangeText={setName} autoFocus={!editing} />
+              <Field label="Character profile" value={description} onChangeText={setDescription} multiline textAlignVertical="top" style={styles.descriptionInput} placeholder="Appearance, personality, background, relationships and writing notes" />
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>收藏角色</Text>
+                <Text style={styles.switchLabel}>Favourite character</Text>
                 <Switch value={isFavorited} onValueChange={setIsFavorited} trackColor={{ false: colors.border, true: colors.primary }} />
               </View>
               <View style={styles.modalActions}>
-                <Button label="取消" variant="secondary" onPress={() => setEditorVisible(false)} />
-                <Button label="保存" onPress={() => void submit()} disabled={!name.trim()} loading={saving} />
+                <Button label="Cancel" variant="secondary" onPress={() => setEditorVisible(false)} />
+                <Button label="Save" onPress={() => void submit()} disabled={!name.trim()} loading={saving} />
               </View>
             </KeyboardAwareScrollView>
           </View>

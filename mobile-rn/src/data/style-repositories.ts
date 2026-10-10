@@ -71,7 +71,7 @@ const mapStyleProfile = (row: StyleProfileRow): StyleProfile => ({
 
 function requiredText(value: string, label: string): string {
   const normalized = value.trim();
-  if (!normalized) throw new Error(`${label}不能为空`);
+  if (!normalized) throw new Error(`${label} cannot be empty`);
   return normalized;
 }
 
@@ -109,11 +109,11 @@ export async function createStyleSource(input: {
 }): Promise<StyleSource> {
   const database = await getDatabase();
   const now = new Date().toISOString();
-  const title = requiredText(input.title, "书名").slice(0, 200);
-  const fileName = requiredText(input.fileName, "文件名").slice(0, 500);
-  if (!["txt", "markdown", "epub"].includes(input.format)) throw new Error("不支持的书籍格式");
-  if (!Number.isSafeInteger(input.sizeBytes) || input.sizeBytes < 1) throw new Error("书籍文件大小无效");
-  if (!Number.isSafeInteger(input.characterCount) || input.characterCount < 1) throw new Error("书籍正文为空");
+  const title = requiredText(input.title, "Book title").slice(0, 200);
+  const fileName = requiredText(input.fileName, "File name").slice(0, 500);
+  if (!["txt", "markdown", "epub"].includes(input.format)) throw new Error("Unsupported book format");
+  if (!Number.isSafeInteger(input.sizeBytes) || input.sizeBytes < 1) throw new Error("Invalid book file size");
+  if (!Number.isSafeInteger(input.characterCount) || input.characterCount < 1) throw new Error("The book has no body text");
   await database.runAsync(
     `INSERT INTO style_sources(
       id, title, file_name, format, file_uri, size_bytes, content_hash, character_count, created_at, updated_at
@@ -124,7 +124,7 @@ export async function createStyleSource(input: {
     input.format,
     input.fileUri,
     input.sizeBytes,
-    requiredText(input.contentHash, "文件摘要"),
+    requiredText(input.contentHash, "File digest"),
     input.characterCount,
     now,
     now,
@@ -146,8 +146,8 @@ export async function createStyleSource(input: {
 export async function renameStyleSource(id: string, title: string): Promise<StyleSource> {
   const database = await getDatabase();
   const existing = await database.getFirstAsync<StyleSourceRow>("SELECT * FROM style_sources WHERE id = ?", id);
-  if (!existing) throw new Error("参考书不存在");
-  const normalizedTitle = requiredText(title, "书名").slice(0, 200);
+  if (!existing) throw new Error("Reference book not found");
+  const normalizedTitle = requiredText(title, "Book title").slice(0, 200);
   const updatedAt = new Date().toISOString();
   await database.runAsync(
     "UPDATE style_sources SET title = ?, updated_at = ? WHERE id = ?",
@@ -225,9 +225,9 @@ export async function getLatestAuthorStyleProfile(projectId: string): Promise<St
 }
 
 function boundedGuide(value: string): string {
-  const guide = requiredText(value, "文风指南");
+  const guide = requiredText(value, "Style guide");
   if (guide.length > MAX_STYLE_GUIDE_CHARACTERS) {
-    throw new Error(`文风指南超过 ${MAX_STYLE_GUIDE_CHARACTERS} 字符限制`);
+    throw new Error(`Style guide exceeds the ${MAX_STYLE_GUIDE_CHARACTERS}-character limit`);
   }
   return guide;
 }
@@ -244,14 +244,14 @@ export async function createAuthorStyleProfileVersion(input: {
 }): Promise<StyleProfile> {
   const database = await getDatabase();
   const guide = boundedGuide(input.guide);
-  const projectId = requiredText(input.projectId, "作品").trim();
+  const projectId = requiredText(input.projectId, "Project").trim();
   const seriesId = `author-${projectId}`;
-  const name = requiredText(input.name, "文风名称").slice(0, 200);
+  const name = requiredText(input.name, "Style name").slice(0, 200);
   const now = new Date().toISOString();
   let profile: StyleProfile | null = null;
   await database.withExclusiveTransactionAsync(async (transaction) => {
     const project = await transaction.getFirstAsync<{ id: string }>("SELECT id FROM projects WHERE id = ?", projectId);
-    if (!project) throw new Error("作品不存在");
+    if (!project) throw new Error("Project not found");
     const latest = await transaction.getFirstAsync<StyleProfileRow>(
       "SELECT * FROM style_profiles WHERE series_id = ? ORDER BY version DESC LIMIT 1",
       seriesId,
@@ -291,7 +291,7 @@ export async function createAuthorStyleProfileVersion(input: {
     }
     const activateProjectId = input.activateForProjectId?.trim() || null;
     if (activateProjectId && profile) {
-      if (profile.projectId !== activateProjectId) throw new Error("该作者文风不属于当前作品");
+      if (profile.projectId !== activateProjectId) throw new Error("This author style does not belong to the current project");
       await transaction.runAsync(
         `INSERT INTO app_settings(key, value) VALUES (?, ?)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
@@ -300,7 +300,7 @@ export async function createAuthorStyleProfileVersion(input: {
       );
     }
   });
-  if (!profile) throw new Error("文风版本保存失败");
+  if (!profile) throw new Error("Failed to save the style version");
   return profile;
 }
 
@@ -316,14 +316,14 @@ export async function saveReferenceStyleProfile(input: {
 }): Promise<StyleProfile> {
   const database = await getDatabase();
   const guide = boundedGuide(input.guide);
-  const sourceId = requiredText(input.sourceId, "参考书").trim();
+  const sourceId = requiredText(input.sourceId, "Reference book").trim();
   const seriesId = `reference-${sourceId}`;
-  const name = requiredText(input.name, "文风名称").slice(0, 200);
+  const name = requiredText(input.name, "Style name").slice(0, 200);
   const now = new Date().toISOString();
   let profile: StyleProfile | null = null;
   await database.withExclusiveTransactionAsync(async (transaction) => {
     const source = await transaction.getFirstAsync<{ id: string }>("SELECT id FROM style_sources WHERE id = ?", sourceId);
-    if (!source) throw new Error("参考书不存在");
+    if (!source) throw new Error("Reference book not found");
     const existing = await transaction.getAllAsync<StyleProfileRow>(
       "SELECT * FROM style_profiles WHERE series_id = ? ORDER BY version DESC",
       seriesId,
@@ -392,7 +392,7 @@ export async function saveReferenceStyleProfile(input: {
     );
     profile = { ...mapStyleProfile(kept), name, guide, version: 1, updatedAt: now };
   });
-  if (!profile) throw new Error("参考文风保存失败");
+  if (!profile) throw new Error("Failed to save the reference style");
   return profile;
 }
 
@@ -400,7 +400,7 @@ export async function deleteStyleProfile(id: string): Promise<void> {
   const database = await getDatabase();
   await database.withExclusiveTransactionAsync(async (transaction) => {
     const profile = await transaction.getFirstAsync<{ id: string }>("SELECT id FROM style_profiles WHERE id = ?", id);
-    if (!profile) throw new Error("文风版本不存在");
+    if (!profile) throw new Error("Style version not found");
     // 独占事务里外键不生效，chapter_drafts.style_profile_id 的 SET NULL 要自己写。
     await transaction.runAsync("UPDATE chapter_drafts SET style_profile_id = NULL WHERE style_profile_id = ?", id);
     await transaction.runAsync(
@@ -451,7 +451,7 @@ export async function setActiveStyleProfile(projectId: string, profileId: string
     profileId,
     projectId,
   );
-  if (!profile) throw new Error("文风不存在或不属于当前作品");
+  if (!profile) throw new Error("The style does not exist or does not belong to the current project");
   await database.runAsync(
     `INSERT INTO app_settings(key, value) VALUES (?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,

@@ -27,16 +27,16 @@ export function MessageActionBar({
   return (
     <View style={styles.bar}>
       <Pressable
-        accessibilityLabel={copied ? "已复制" : "复制助手消息"}
+        accessibilityLabel={copied ? "Copied" : "Copy assistant message"}
         accessibilityRole="button"
         onPress={() => void copy()}
         style={({ pressed }) => [styles.action, pressed && styles.pressed]}
       >
         <Ionicons name={copied ? "checkmark" : "copy-outline"} size={15} color={colors.textMuted} />
-        <Text style={styles.actionText}>{copied ? "已复制" : "复制"}</Text>
+        <Text style={styles.actionText}>{copied ? "Copied" : "Copy"}</Text>
       </Pressable>
       <Pressable
-        accessibilityLabel="重新生成助手消息"
+        accessibilityLabel="Regenerate assistant message"
         accessibilityRole="button"
         disabled={retryDisabled}
         onPress={onRetry}
@@ -48,7 +48,7 @@ export function MessageActionBar({
         ]}
       >
         <Ionicons name="refresh-outline" size={15} color={prominentRetry ? colors.primary : colors.textMuted} />
-        <Text style={[styles.actionText, prominentRetry && styles.prominentText]}>{retryDisabled ? "处理中" : "重试"}</Text>
+        <Text style={[styles.actionText, prominentRetry && styles.prominentText]}>{retryDisabled ? "Working" : "Retry"}</Text>
       </Pressable>
     </View>
   );

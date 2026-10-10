@@ -5,7 +5,7 @@ import type { AgentMessage, AgentToolCall, AgentToolDefinition, ModelTurn } from
 import { MAX_CONFIGURED_OUTPUT_TOKENS, normalizeMaxOutputTokens } from "./limits";
 import { buildResponsesRequestBody, parseResponsesTurn } from "./responses-api";
 
-const CANCELLED_MESSAGE = "已取消本次请求";
+const CANCELLED_MESSAGE = "This request was cancelled";
 
 const REQUEST_TIMEOUT_MS = 120_000;
 // 以下重试默认值会被"连接"设置里的可选项覆盖（issue #4）。
@@ -101,7 +101,7 @@ function errorDetail(data: Record<string, any>, text: string, statusText: string
   if (primary && !/^\d{3}$/.test(primary)) return primary;
   const raw = text.trim();
   if (raw && !/^\{?\s*"?error"?\s*:\s*"?\d{3}"?\s*\}?$/i.test(raw)) return raw.slice(0, 4_000);
-  return primary || statusText || "供应商未返回错误详情";
+  return primary || statusText || "The provider returned no error details";
 }
 
 function retryDelay(response: Response, attempt: number): number {
@@ -154,14 +154,14 @@ async function requestJson(url: string, init: RequestInit, signal?: AbortSignal)
           parsed = JSON.parse(text);
         } catch {
           // 丢掉响应体会让这类故障完全无法诊断，带一段原文出来。
-          if (response.ok) throw new Error(`模型服务返回了无法解析的非 JSON 响应：${text.trim().slice(0, 300)}`);
+          if (response.ok) throw new Error(`The model service returned an unparseable non-JSON response: ${text.trim().slice(0, 300)}`);
         }
         if (isRecord(parsed)) data = parsed;
         else if (parsed !== undefined && response.ok) {
-          throw new Error(`模型服务返回的 JSON 不是对象：${text.trim().slice(0, 300)}`);
+          throw new Error(`The JSON returned by the model service is not an object: ${text.trim().slice(0, 300)}`);
         }
       } else if (response.ok) {
-        throw new Error("模型服务返回了空响应体");
+        throw new Error("The model service returned an empty response body");
       }
       if (response.ok) return data;
       const detail = errorDetail(data, text, response.statusText);
@@ -175,7 +175,7 @@ async function requestJson(url: string, init: RequestInit, signal?: AbortSignal)
       // 用户主动取消不是故障：不要重试，也不要报成超时或网络错误。
       if (signal?.aborted) throw new Error(CANCELLED_MESSAGE);
       if (isRecord(error) && error.name === "AbortError") {
-        lastError = new Error("模型请求超时，请检查网络或 Base URL");
+        lastError = new Error("Model request timed out; check your network or Base URL");
       } else if (error instanceof TypeError) {
         const detail = error.message.trim();
         lastError = new Error(`fetch failed${detail ? `: ${detail}` : ""}`);
@@ -195,12 +195,12 @@ async function requestJson(url: string, init: RequestInit, signal?: AbortSignal)
       signal?.removeEventListener("abort", abortFromCaller);
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("模型请求失败");
+  throw lastError instanceof Error ? lastError : new Error("Model request failed");
 }
 
 function normalizeBaseUrl(value: string): string {
   const normalized = value.trim().replace(/\/+$/, "");
-  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) throw new Error("模型 Base URL 无效");
+  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) throw new Error("Model Base URL is invalid");
   return normalized;
 }
 
@@ -261,10 +261,10 @@ async function callOpenAi(
   // 不做静默降级，否则调用方只会看到"内容为空"，无法判断该调高上限。
   if (!content.trim() && !toolCalls.length) {
     if (finishReason === "length") {
-      throw new Error(`模型在返回正文前就用完了 ${maxOutputTokens} 个输出 Token（finish_reason=length）。思考型模型的推理过程也计入这个上限，请在“设置 → 模型与供应商”调高最大输出 Token 数，或换用非思考模型。`);
+      throw new Error(`The model used up all ${maxOutputTokens} output tokens before returning any content (finish_reason=length). A reasoning model's thinking also counts towards this limit; raise the maximum output tokens in Settings → Models & Providers, or switch to a non-reasoning model.`);
     }
     if (finishReason && finishReason !== "stop") {
-      throw new Error(`模型没有返回内容，finish_reason=${finishReason}`);
+      throw new Error(`The model returned no content, finish_reason=${finishReason}`);
     }
   }
   return { content, toolCalls };
@@ -301,12 +301,12 @@ async function callOpenAiResponses(
     })),
   }, options?.signal);
   const turn = parseResponsesTurn(data);
-  if (turn.failureMessage) throw new Error(`模型服务返回失败：${turn.failureMessage}`);
+  if (turn.failureMessage) throw new Error(`The model service reported a failure: ${turn.failureMessage}`);
   if (!turn.content.trim() && !turn.toolCalls.length) {
     if (turn.incompleteReason === "max_output_tokens") {
-      throw new Error(`模型在返回正文前就用完了 ${maxOutputTokens} 个输出 Token（incomplete_details.reason=max_output_tokens）。思考型模型的推理过程也计入这个上限，请在“设置 → 模型与供应商”调高最大输出 Token 数，或换用非思考模型。`);
+      throw new Error(`The model used up all ${maxOutputTokens} output tokens before returning any content (incomplete_details.reason=max_output_tokens). A reasoning model's thinking also counts towards this limit; raise the maximum output tokens in Settings → Models & Providers, or switch to a non-reasoning model.`);
     }
-    if (turn.incompleteReason) throw new Error(`模型没有返回内容（incomplete_details.reason=${turn.incompleteReason}）`);
+    if (turn.incompleteReason) throw new Error(`The model returned no content (incomplete_details.reason=${turn.incompleteReason})`);
   }
   return { content: turn.content, toolCalls: turn.toolCalls };
 }
@@ -394,10 +394,10 @@ async function callGemini(
   const finishReason = String(data.candidates?.[0]?.finishReason ?? "");
   if (!parts.length) {
     if (finishReason === "MAX_TOKENS") {
-      throw new Error(`模型在返回正文前就用完了 ${maxOutputTokens} 个输出 Token（finishReason=MAX_TOKENS）。思考型模型的推理过程也计入这个上限，请在“设置 → 模型与供应商”调高最大输出 Token 数。`);
+      throw new Error(`The model used up all ${maxOutputTokens} output tokens before returning any content (finishReason=MAX_TOKENS). A reasoning model's thinking also counts towards this limit; raise the maximum output tokens in Settings → Models & Providers.`);
     }
-    const reason = data.promptFeedback?.blockReason ?? finishReason ?? "模型没有返回内容";
-    throw new Error(`Gemini 请求未完成: ${reason}`);
+    const reason = data.promptFeedback?.blockReason ?? finishReason ?? "The model returned no content";
+    throw new Error(`Gemini request did not complete: ${reason}`);
   }
   const toolCalls = parts.filter((part) => part.functionCall).map((part, index) => ({
     id: `gemini-${Date.now()}-${index}`,
@@ -471,7 +471,7 @@ async function callAnthropic(
     id: String(block.id), name: String(block.name), arguments: block.input ?? {},
   }));
   if (!content.trim() && !toolCalls.length && data.stop_reason === "max_tokens") {
-    throw new Error(`模型在返回正文前就用完了 ${maxOutputTokens} 个输出 Token（stop_reason=max_tokens）。请在“设置 → 模型与供应商”调高最大输出 Token 数。`);
+    throw new Error(`The model used up all ${maxOutputTokens} output tokens before returning any content (stop_reason=max_tokens). Raise the maximum output tokens in Settings → Models & Providers.`);
   }
   return { content, toolCalls };
 }

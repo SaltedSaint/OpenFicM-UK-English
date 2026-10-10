@@ -39,9 +39,9 @@ type Group = {
 };
 
 const SCOPE_LABEL: Record<NoteScope, string> = {
-  project: "整书",
-  volume: "卷",
-  chapter: "章",
+  project: "Book",
+  volume: "Volume",
+  chapter: "Chapter",
 };
 
 export function NotesScreen() {
@@ -96,7 +96,7 @@ export function NotesScreen() {
     }
     const output: Group[] = [{
       key: "project",
-      label: "整书",
+      label: "Book",
       scope: "project",
       volumeId: null,
       chapterId: null,
@@ -175,10 +175,10 @@ export function NotesScreen() {
   };
 
   const confirmDelete = (note: Note) => {
-    Alert.alert("删除笔记", `确定删除“${note.title}”？`, [
-      { text: "取消", style: "cancel" },
+    Alert.alert("Delete note", `Delete "${note.title}"?`, [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "删除",
+        text: "Delete",
         style: "destructive",
         onPress: () => {
           setBusy(true);
@@ -212,7 +212,7 @@ export function NotesScreen() {
   // 移动目标包含所有卷和所有章，不只是已有笔记的那些分组。
   const moveTargets = useMemo<Group[]>(() => {
     const output: Group[] = [{
-      key: "project", label: "整书", scope: "project", volumeId: null, chapterId: null, notes: [],
+      key: "project", label: "Book", scope: "project", volumeId: null, chapterId: null, notes: [],
     }];
     for (const volume of volumes) {
       output.push({
@@ -232,8 +232,8 @@ export function NotesScreen() {
   if (!projectId) {
     return (
       <Screen>
-        <Header title="笔记" onBack={() => navigation.goBack()} />
-        <EmptyState title="请先从书架打开一部作品" />
+        <Header title="Notes" onBack={() => navigation.goBack()} />
+        <EmptyState title="Open a project from the shelf first" />
       </Screen>
     );
   }
@@ -241,7 +241,7 @@ export function NotesScreen() {
   if (loading) {
     return (
       <Screen>
-        <Header title="笔记" onBack={() => navigation.goBack()} />
+        <Header title="Notes" onBack={() => navigation.goBack()} />
         <View style={styles.loading}><ActivityIndicator color={colors.primary} /></View>
       </Screen>
     );
@@ -249,7 +249,7 @@ export function NotesScreen() {
 
   return (
     <Screen>
-      <Header title="笔记" onBack={() => navigation.goBack()} />
+      <Header title="Notes" onBack={() => navigation.goBack()} />
       {error ? <View style={styles.errorWrap}><ErrorNotice message={error} onRetry={() => void load()} /></View> : null}
       <FlatList
         data={groups}
@@ -259,10 +259,10 @@ export function NotesScreen() {
           <View style={styles.intro}>
             <View style={styles.introIcon}><Ionicons name="reader-outline" size={24} color={colors.primary} /></View>
             <View style={styles.introCopy}>
-              <Text style={styles.introTitle}>大纲与剧情规划</Text>
+              <Text style={styles.introTitle}>Outlines and plot planning</Text>
               <Text style={styles.introText}>
-                笔记按整书、卷、章三级归属，共 {totalNotes} 条。还没在正文里发生的内容放这里，
-                不要写进世界书——世界书会被当成已经成立的设定。
+                Notes are scoped to book, volume or chapter, {totalNotes} in total. Put content that has
+                not happened in the prose here — not in the world book, which is treated as established canon.
               </Text>
             </View>
           </View>
@@ -272,7 +272,7 @@ export function NotesScreen() {
             <View style={styles.groupHeader}>
               <Text style={styles.groupLabel} numberOfLines={1}>{item.label}</Text>
               <Text style={styles.groupScope}>{SCOPE_LABEL[item.scope]}</Text>
-              <Pressable accessibilityLabel={`在${item.label}新建笔记`} onPress={() => openCreate(item)} style={styles.groupAdd}>
+              <Pressable accessibilityLabel={`New note in ${item.label}`} onPress={() => openCreate(item)} style={styles.groupAdd}>
                 <Ionicons name="add" size={20} color={colors.primary} />
               </Pressable>
             </View>
@@ -281,14 +281,14 @@ export function NotesScreen() {
                 <View style={styles.noteCopy}>
                   <Text style={styles.noteTitle} numberOfLines={1}>{note.title}</Text>
                   <Text style={styles.noteMeta} numberOfLines={2}>
-                    {note.content.trim().slice(0, 90).replace(/\s+/g, " ") || "（空笔记）"}
+                    {note.content.trim().slice(0, 90).replace(/\s+/g, " ") || "(empty note)"}
                   </Text>
                 </View>
-                <Pressable accessibilityLabel="移动笔记" onPress={() => setMovingNote(note)} style={styles.noteAction}>
+                <Pressable accessibilityLabel="Move note" onPress={() => setMovingNote(note)} style={styles.noteAction}>
                   <Ionicons name="swap-vertical-outline" size={18} color={colors.textMuted} />
                 </Pressable>
               </Pressable>
-            )) : <Text style={styles.groupEmpty}>还没有笔记</Text>}
+            )) : <Text style={styles.groupEmpty}>No notes yet</Text>}
           </View>
         )}
       />
@@ -298,24 +298,24 @@ export function NotesScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <View style={styles.sheetTitleWrap}>
-                <Text style={styles.sheetTitle}>{editing ? "编辑笔记" : "新建笔记"}</Text>
+                <Text style={styles.sheetTitle}>{editing ? "Edit note" : "New note"}</Text>
                 <Text style={styles.sheetMeta}>
                   {editing
                     ? SCOPE_LABEL[noteScope(editing)]
                     : `${SCOPE_LABEL[creatingIn?.scope ?? "project"]} · ${creatingIn?.label.trim()}`}
                 </Text>
               </View>
-              <Pressable accessibilityLabel="关闭" onPress={closeEditor} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close" onPress={closeEditor} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
             <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
-              <Field label="标题" value={title} onChangeText={setTitle} autoFocus={!editing} maxLength={200} />
-              <Field label="内容" value={content} onChangeText={setContent} multiline style={styles.contentInput} maxLength={100000} />
+              <Field label="Title" value={title} onChangeText={setTitle} autoFocus={!editing} maxLength={200} />
+              <Field label="Content" value={content} onChangeText={setContent} multiline style={styles.contentInput} maxLength={100000} />
               <View style={styles.inlineActions}>
-                <Button label="保存" onPress={() => void save()} disabled={busy || !title.trim()} loading={busy} />
+                <Button label="Save" onPress={() => void save()} disabled={busy || !title.trim()} loading={busy} />
                 {editing ? (
-                  <Pressable accessibilityLabel="删除笔记" onPress={() => confirmDelete(editing)} style={styles.secondaryIconAction}>
+                  <Pressable accessibilityLabel="Delete note" onPress={() => confirmDelete(editing)} style={styles.secondaryIconAction}>
                     <Ionicons name="trash-outline" size={21} color={colors.danger} />
                   </Pressable>
                 ) : null}
@@ -330,10 +330,10 @@ export function NotesScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <View style={styles.sheetTitleWrap}>
-                <Text style={styles.sheetTitle} numberOfLines={1}>移动“{movingNote?.title}”</Text>
-                <Text style={styles.sheetMeta}>选择新的归属层级</Text>
+                <Text style={styles.sheetTitle} numberOfLines={1}>Move "{movingNote?.title}"</Text>
+                <Text style={styles.sheetMeta}>Choose the new scope</Text>
               </View>
-              <Pressable accessibilityLabel="关闭" onPress={() => setMovingNote(null)} style={styles.iconButton}>
+              <Pressable accessibilityLabel="Close" onPress={() => setMovingNote(null)} style={styles.iconButton}>
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
             </View>
@@ -350,7 +350,7 @@ export function NotesScreen() {
                   >
                     <Text style={styles.targetScope}>{SCOPE_LABEL[target.scope]}</Text>
                     <Text style={styles.targetLabel} numberOfLines={1}>{target.label.trim()}</Text>
-                    {current ? <Text style={styles.targetCurrentText}>当前</Text> : null}
+                    {current ? <Text style={styles.targetCurrentText}>Current</Text> : null}
                   </Pressable>
                 );
               })}

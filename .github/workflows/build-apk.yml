@@ -1,0 +1,72 @@
+name: Build Android APK
+
+# Manual trigger only. Optionally publishes the APK as a GitHub Release
+# asset when a release_tag input is provided.
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "If set, publish the APK as a GitHub Release asset (e.g. v0.11.0)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-rn
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile-rn/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # Uses the "standalone" build type: bundles the JS, debug-signed,
+      # no keystore secrets required. Not for Play Store distribution.
+      - name: Build standalone APK
+        working-directory: mobile-rn/android
+        env:
+          NODE_ENV: production
+        run: ./gradlew assembleStandalone --no-daemon
+
+      - name: Read app version
+        id: ver
+        run: echo "version=$(node -p "require('./app.json').expo.version")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openficm-apk-${{ steps.ver.outputs.version }}
+          path: mobile-rn/android/app/build/outputs/apk/standalone/app-standalone.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: OpenFicM ${{ inputs.release_tag }}
+          files: mobile-rn/android/app/build/outputs/apk/standalone/app-standalone.apk

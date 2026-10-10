@@ -84,18 +84,18 @@ export async function checkAppUpdate(): Promise<AppUpdateInfo> {
       headers: { Accept: "application/vnd.github+json" },
       signal: controller.signal,
     });
-    if (response.status === 404) throw new Error("仓库还没有发布任何 Release");
-    if (!response.ok) throw new Error(`GitHub 返回 HTTP ${response.status}`);
+    if (response.status === 404) throw new Error("The repository has not published any release yet");
+    if (!response.ok) throw new Error(`GitHub returned HTTP ${response.status}`);
     payload = await response.json();
   } catch (error) {
-    if (isRecord(error) && error.name === "AbortError") throw new Error("检查更新超时，请确认网络可以访问 GitHub");
+    if (isRecord(error) && error.name === "AbortError") throw new Error("Timed out while checking for updates; make sure your network can reach GitHub");
     throw error instanceof Error ? error : new Error(String(error));
   } finally {
     clearTimeout(timeout);
   }
-  if (!isRecord(payload)) throw new Error("GitHub Release 数据格式无效");
+  if (!isRecord(payload)) throw new Error("Invalid GitHub release data format");
   const latestVersion = typeof payload.tag_name === "string" ? payload.tag_name.replace(/^v/i, "").trim() : "";
-  if (!latestVersion) throw new Error("GitHub Release 没有版本号");
+  if (!latestVersion) throw new Error("The GitHub release has no version number");
   const assets = Array.isArray(payload.assets) ? payload.assets.filter(isRecord) : [];
   const apk = assets.find((asset) => typeof asset.name === "string" && asset.name.toLowerCase().endsWith(".apk"));
   const info: AppUpdateInfo = {

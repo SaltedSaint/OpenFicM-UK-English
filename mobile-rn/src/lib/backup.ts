@@ -29,7 +29,7 @@ export async function exportBackup(): Promise<void> {
   await db.execAsync("PRAGMA wal_checkpoint(FULL)");
 
   const databaseFile = new File(Paths.document, "SQLite", "openfic.db");
-  if (!databaseFile.exists) throw new Error("找不到数据库文件");
+  if (!databaseFile.exists) throw new Error("Database file not found");
 
   const entries: Record<string, Uint8Array> = {
     "openfic.db": databaseFile.bytesSync(),
@@ -42,7 +42,7 @@ export async function exportBackup(): Promise<void> {
     type: "openficm.backup",
     schemaVersion: 1,
     exportedAt: new Date().toISOString(),
-    note: "恢复方法：解压后关闭应用，把 openfic.db 放回应用数据目录的 SQLite/ 下，style-library/ 放回应用数据目录。",
+    note: "To restore: unzip, close the app, put openfic.db back under SQLite/ in the app data directory and style-library/ back in the app data directory.",
   };
   entries["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
 
@@ -51,9 +51,9 @@ export async function exportBackup(): Promise<void> {
   if (zipFile.exists) zipFile.delete();
   zipFile.write(zipped);
 
-  if (!(await Sharing.isAvailableAsync())) throw new Error("当前设备不支持系统分享");
+  if (!(await Sharing.isAvailableAsync())) throw new Error("This device does not support system sharing");
   await Sharing.shareAsync(zipFile.uri, {
     mimeType: "application/zip",
-    dialogTitle: "导出 OpenFicM 备份",
+    dialogTitle: "Export OpenFicM backup",
   });
 }

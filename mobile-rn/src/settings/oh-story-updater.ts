@@ -33,22 +33,22 @@ const CHARACTER_WRITE_TOOL_NAMES = ["create_character", "edit_character", "delet
 const WORLD_WRITE_TOOL_NAMES = ["create_world_entry", "edit_world_entry", "delete_world_entry"];
 
 const SKILL_SOURCES = [
-  { path: "skills/story/SKILL.md", name: "网文创作路由" },
-  { path: "skills/story-long-write/SKILL.md", name: "长篇网文写作" },
-  { path: "skills/story-short-write/SKILL.md", name: "短篇网文写作" },
-  { path: "skills/story-review/SKILL.md", name: "小说审校" },
-  { path: "skills/story-long-analyze/SKILL.md", name: "长篇拆文" },
-  { path: "skills/story-short-analyze/SKILL.md", name: "短篇拆文" },
-  { path: "skills/story-deslop/SKILL.md", name: "网文去 AI 味" },
+  { path: "skills/story/SKILL.md", name: "Web-novel creation routing" },
+  { path: "skills/story-long-write/SKILL.md", name: "Long-form web-novel writing" },
+  { path: "skills/story-short-write/SKILL.md", name: "Short-form web-novel writing" },
+  { path: "skills/story-review/SKILL.md", name: "Novel review" },
+  { path: "skills/story-long-analyze/SKILL.md", name: "Long-form story analysis" },
+  { path: "skills/story-short-analyze/SKILL.md", name: "Short-form story analysis" },
+  { path: "skills/story-deslop/SKILL.md", name: "Web-novel de-AI editing" },
 ] as const;
 
 const AGENT_SOURCES = [
-  { path: "skills/story-setup/references/opencode/agents/chapter-extractor.md", key: "chapter-extractor", name: "章节信息提取", tools: READ_TOOL_NAMES },
-  { path: "skills/story-setup/references/opencode/agents/character-designer.md", key: "character-designer", name: "角色设计", tools: [...READ_TOOL_NAMES, ...CHARACTER_WRITE_TOOL_NAMES, ...WORLD_WRITE_TOOL_NAMES] },
-  { path: "skills/story-setup/references/opencode/agents/consistency-checker.md", key: "consistency-checker", name: "一致性检查", tools: READ_TOOL_NAMES },
-  { path: "skills/story-setup/references/opencode/agents/narrative-writer.md", key: "narrative-writer", name: "正文写作", tools: [...READ_TOOL_NAMES, ...CHAPTER_WRITE_TOOL_NAMES] },
-  { path: "skills/story-setup/references/opencode/agents/story-architect.md", key: "story-architect", name: "故事架构", tools: [...READ_TOOL_NAMES, ...CHARACTER_WRITE_TOOL_NAMES, ...WORLD_WRITE_TOOL_NAMES] },
-  { path: "skills/story-setup/references/opencode/agents/story-explorer.md", key: "story-explorer", name: "故事探索", tools: READ_TOOL_NAMES },
+  { path: "skills/story-setup/references/opencode/agents/chapter-extractor.md", key: "chapter-extractor", name: "Chapter information extraction", tools: READ_TOOL_NAMES },
+  { path: "skills/story-setup/references/opencode/agents/character-designer.md", key: "character-designer", name: "Character design", tools: [...READ_TOOL_NAMES, ...CHARACTER_WRITE_TOOL_NAMES, ...WORLD_WRITE_TOOL_NAMES] },
+  { path: "skills/story-setup/references/opencode/agents/consistency-checker.md", key: "consistency-checker", name: "Consistency checking", tools: READ_TOOL_NAMES },
+  { path: "skills/story-setup/references/opencode/agents/narrative-writer.md", key: "narrative-writer", name: "Prose writing", tools: [...READ_TOOL_NAMES, ...CHAPTER_WRITE_TOOL_NAMES] },
+  { path: "skills/story-setup/references/opencode/agents/story-architect.md", key: "story-architect", name: "Story architecture", tools: [...READ_TOOL_NAMES, ...CHARACTER_WRITE_TOOL_NAMES, ...WORLD_WRITE_TOOL_NAMES] },
+  { path: "skills/story-setup/references/opencode/agents/story-explorer.md", key: "story-explorer", name: "Story exploration", tools: READ_TOOL_NAMES },
 ] as const;
 
 const remoteSkillSchema = z.object({
@@ -115,7 +115,7 @@ type ParsedMarkdown = {
 
 function versionParts(value: string): [number, number, number] {
   const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(value.trim());
-  if (!match) throw new Error(`不支持的 Release 版本格式: ${value}`);
+  if (!match) throw new Error(`Unsupported release version format: ${value}`);
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
@@ -164,12 +164,12 @@ async function fetchText(
           throw error;
         }
       } else {
-        if (text.length > maximumCharacters) throw new Error(`远程文件超过 ${maximumCharacters} 字符限制`);
+        if (text.length > maximumCharacters) throw new Error(`Remote file exceeds the ${maximumCharacters}-character limit`);
         return text;
       }
     } catch (error) {
       lastError = error instanceof Error && error.name === "AbortError"
-        ? new Error("检查 oh-story 更新超时")
+        ? new Error("Timed out while checking for oh-story updates")
         : error;
       if (attempt + 1 >= MAX_FETCH_ATTEMPTS) throw lastError;
     } finally {
@@ -177,7 +177,7 @@ async function fetchText(
     }
     await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
   }
-  throw lastError instanceof Error ? lastError : new Error("oh-story 更新请求失败");
+  throw lastError instanceof Error ? lastError : new Error("The oh-story update request failed");
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -185,24 +185,24 @@ async function fetchJson(url: string): Promise<unknown> {
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error("GitHub 返回了无法解析的 JSON");
+    throw new Error("GitHub returned unparseable JSON");
   }
 }
 
 function parseMarkdownDocument(content: string, path: string): ParsedMarkdown {
   const normalized = content.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
   const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(normalized);
-  if (!match) throw new Error(`${path} 缺少有效的 YAML frontmatter`);
+  if (!match) throw new Error(`${path} is missing valid YAML frontmatter`);
   const metadata = parseYaml(match[1]);
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) throw new Error(`${path} 的 frontmatter 不是对象`);
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) throw new Error(`${path} frontmatter is not an object`);
   const body = match[2].trim();
-  if (!body) throw new Error(`${path} 正文为空`);
+  if (!body) throw new Error(`${path} has an empty body`);
   return { metadata: metadata as Record<string, unknown>, body };
 }
 
 function requiredMetadataText(document: ParsedMarkdown, key: string, path: string): string {
   const value = document.metadata[key];
-  if (typeof value !== "string" || !value.trim()) throw new Error(`${path} 缺少 ${key}`);
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${path} is missing ${key}`);
   return value.trim();
 }
 
@@ -225,7 +225,7 @@ export async function getInstalledOhStoryPackage(): Promise<OhStoryPackage | nul
 
 export async function checkOhStoryRelease(): Promise<OhStoryRelease> {
   const payload = await fetchJson(`${API_ROOT}/releases/latest`);
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("GitHub Release 数据格式无效");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Invalid GitHub release data format");
   const source = payload as Record<string, unknown>;
   const version = versionSchema.parse(source.tag_name);
   const revision = sourceRevision(await fetchJson(`${API_ROOT}/commits/${encodeURIComponent(version)}`));
@@ -276,12 +276,12 @@ type SourceTree = {
 };
 
 function sourceRevision(payload: unknown): { commitSha: string; treeSha: string } {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("GitHub Commit 数据格式无效");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Invalid GitHub commit data format");
   const source = payload as Record<string, unknown>;
   const commit = source.commit;
-  if (!commit || typeof commit !== "object" || Array.isArray(commit)) throw new Error("GitHub Commit 缺少 tree");
+  if (!commit || typeof commit !== "object" || Array.isArray(commit)) throw new Error("GitHub commit is missing the tree");
   const tree = (commit as Record<string, unknown>).tree;
-  if (!tree || typeof tree !== "object" || Array.isArray(tree)) throw new Error("GitHub Commit 缺少 tree");
+  if (!tree || typeof tree !== "object" || Array.isArray(tree)) throw new Error("GitHub commit is missing the tree");
   return {
     commitSha: gitShaSchema.parse(source.sha),
     treeSha: gitShaSchema.parse((tree as Record<string, unknown>).sha),
@@ -289,10 +289,10 @@ function sourceRevision(payload: unknown): { commitSha: string; treeSha: string 
 }
 
 function sourceTree(payload: unknown): SourceTree {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("GitHub 源码树格式无效");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Invalid GitHub source-tree format");
   const source = payload as Record<string, unknown>;
-  if (source.truncated === true) throw new Error("GitHub 源码树被截断，已停止更新");
-  if (!Array.isArray(source.tree)) throw new Error("GitHub 源码树缺少文件列表");
+  if (source.truncated === true) throw new Error("The GitHub source tree was truncated; the update was stopped");
+  if (!Array.isArray(source.tree)) throw new Error("The GitHub source tree is missing the file list");
   const sha = gitShaSchema.parse(source.sha);
   const blobs = new Map<string, SourceBlob>();
   for (const item of source.tree) {
@@ -318,12 +318,12 @@ function buildRemoteSkill(
 ): AgentSkill {
   const document = parseMarkdownDocument(content, source.path);
   const slug = requiredMetadataText(document, "name", source.path);
-  if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`${source.path} 的 name 不符合安全命名规则`);
+  if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`${source.path}'s name does not meet the safe naming rules`);
   return {
     id: `oh-story-skill--${slug}`,
     name: source.name,
     description: requiredMetadataText(document, "description", source.path),
-    instructions: `${MOBILE_SKILL_POLICY}\n\n来源版本：${release.version}\n\n${document.body}\n\n${MOBILE_SKILL_POLICY}`,
+    instructions: `${MOBILE_SKILL_POLICY}\n\nSource version: ${release.version}\n\n${document.body}\n\n${MOBILE_SKILL_POLICY}`,
     enabled: true,
     source: "remote",
   };
@@ -340,7 +340,7 @@ function buildRemoteAgent(
     id: `oh-story-agent--${source.key}`,
     name: source.name,
     description: requiredMetadataText(document, "description", source.path),
-    systemPrompt: `${MOBILE_AGENT_POLICY}\n\n来源版本：${release.version}\n\n${document.body}\n\n${MOBILE_AGENT_POLICY}`,
+    systemPrompt: `${MOBILE_AGENT_POLICY}\n\nSource version: ${release.version}\n\n${document.body}\n\n${MOBILE_AGENT_POLICY}`,
     modelId: "",
     enabled: true,
     kind: "subagent",
@@ -361,26 +361,26 @@ export async function installOhStoryRelease(
   if (state.installed) {
     const comparison = compareOhStoryVersions(release.version, state.installed.version);
     const installedRevision = state.installed.commitSha ?? state.installed.treeSha;
-    if (comparison < 0) throw new Error(`拒绝从 ${state.installed.version} 降级到 ${release.version}`);
+    if (comparison < 0) throw new Error(`Refusing to downgrade from ${state.installed.version} to ${release.version}`);
     if (comparison === 0 && installedRevision === release.commitSha) return state.installed;
     if (comparison === 0 && installedRevision && installedRevision !== release.commitSha) {
-      throw new Error(`${release.version} 的 GitHub 源码修订已变化；为避免同版本内容被替换，已拒绝安装`);
+      throw new Error(`The GitHub source revision for ${release.version} changed; installation was refused to avoid replacing same-version content`);
     }
   }
 
   const requiredPaths = [...SKILL_SOURCES.map((item) => item.path), ...AGENT_SOURCES.map((item) => item.path)];
   const tree = sourceTree(await fetchJson(`${API_ROOT}/git/trees/${release.treeSha}?recursive=1`));
-  if (tree.sha !== release.treeSha) throw new Error("GitHub 返回的源码修订与检查记录不一致");
+  if (tree.sha !== release.treeSha) throw new Error("The source revision returned by GitHub does not match the checked record");
   const missing = requiredPaths.filter((path) => !tree.blobs.has(path));
-  if (missing.length) throw new Error(`Release 缺少必需文件: ${missing.join(", ")}`);
+  if (missing.length) throw new Error(`The release is missing a required file: ${missing.join(", ")}`);
 
   const documents = new Map<string, string>();
   let packageCharacters = 0;
   for (let index = 0; index < requiredPaths.length; index += 1) {
     const path = requiredPaths[index];
     const blob = tree.blobs.get(path);
-    if (!blob) throw new Error(`Release 缺少必需文件: ${path}`);
-    if (blob.size > MAX_DOCUMENT_BYTES) throw new Error(`${path} 超过 ${MAX_DOCUMENT_BYTES} 字节限制`);
+    if (!blob) throw new Error(`The release is missing a required file: ${path}`);
+    if (blob.size > MAX_DOCUMENT_BYTES) throw new Error(`${path} exceeds the ${MAX_DOCUMENT_BYTES}-byte limit`);
     onProgress?.({ completed: index, total: requiredPaths.length, label: path });
     const content = await fetchText(
       rawUrl(release.commitSha, path),
@@ -388,7 +388,7 @@ export async function installOhStoryRelease(
       "text/plain",
     );
     packageCharacters += content.length;
-    if (packageCharacters > MAX_PACKAGE_CHARACTERS) throw new Error(`内容包超过 ${MAX_PACKAGE_CHARACTERS} 字符限制`);
+    if (packageCharacters > MAX_PACKAGE_CHARACTERS) throw new Error(`The content pack exceeds the ${MAX_PACKAGE_CHARACTERS}-character limit`);
     documents.set(path, content);
     onProgress?.({ completed: index + 1, total: requiredPaths.length, label: path });
   }
@@ -423,7 +423,7 @@ export async function installOhStoryRelease(
 
 export async function rollbackOhStoryPackage(): Promise<OhStoryPackage> {
   const state = await getOhStoryUpdateState();
-  if (!state.previous) throw new Error("没有可回滚的 oh-story 内容包");
+  if (!state.previous) throw new Error("There is no oh-story content pack to roll back");
   await setSettings([
     [PREVIOUS_PACKAGE_KEY, state.installed ? JSON.stringify(state.installed) : ""],
     [PACKAGE_KEY, JSON.stringify(state.previous)],

@@ -20,7 +20,7 @@ function safeFileName(value: string): string {
 }
 
 function renderChapter(chapter: Chapter): string {
-  return `### ${chapter.title}\n\n${chapter.content.trim() || "（本章暂无正文）"}\n`;
+  return `### ${chapter.title}\n\n${chapter.content.trim() || "(no text in this chapter yet)"}\n`;
 }
 
 export async function exportNovel(input: ExportNovelInput): Promise<void> {
@@ -33,33 +33,33 @@ export async function exportNovel(input: ExportNovelInput): Promise<void> {
 
   if (input.scope === "chapter") {
     const chapter = orderedChapters.find((item) => item.id === input.chapterId);
-    if (!chapter) throw new Error("当前章节不存在，无法导出");
+    if (!chapter) throw new Error("The current chapter does not exist; cannot export");
     title = chapter.title;
     markdown += renderChapter(chapter);
   } else {
     const volumes = input.scope === "volume"
       ? orderedVolumes.filter((volume) => volume.id === input.volumeId)
       : orderedVolumes;
-    if (!volumes.length) throw new Error(input.scope === "volume" ? "当前卷不存在，无法导出" : "作品没有可导出的卷");
+    if (!volumes.length) throw new Error(input.scope === "volume" ? "The current volume does not exist; cannot export" : "The project has no volume to export");
     if (input.scope === "volume") title = volumes[0].title;
     for (const volume of volumes) {
       markdown += `## ${volume.title}\n\n`;
       const volumeChapters = orderedChapters.filter((chapter) => chapter.volumeId === volume.id);
       markdown += volumeChapters.length
         ? volumeChapters.map(renderChapter).join("\n")
-        : "（本卷暂无章节）\n\n";
+        : "(no chapters in this volume)\n\n";
     }
   }
 
-  const scopeLabel = input.scope === "chapter" ? "章节" : input.scope === "volume" ? "卷" : "全书";
+  const scopeLabel = input.scope === "chapter" ? "chapter" : input.scope === "volume" ? "volume" : "book";
   const timestamp = new Date().toISOString().replace(/[.:]/g, "-");
   const file = new File(Paths.cache, `${safeFileName(input.project.title)}-${safeFileName(title)}-${scopeLabel}-${timestamp}.md`);
   if (file.exists) file.delete();
   file.write(markdown);
-  if (!(await Sharing.isAvailableAsync())) throw new Error("当前设备不支持系统分享，请稍后重试");
+  if (!(await Sharing.isAvailableAsync())) throw new Error("This device does not support system sharing; try again later");
   await Sharing.shareAsync(file.uri, {
     mimeType: "text/markdown",
-    dialogTitle: `导出${scopeLabel}`,
+    dialogTitle: `Export ${scopeLabel}`,
   });
 }
 
@@ -79,7 +79,7 @@ async function shareTextFile(fileName: string, content: string, format: LibraryE
   const file = new File(Paths.cache, fileName);
   if (file.exists) file.delete();
   file.write(content);
-  if (!(await Sharing.isAvailableAsync())) throw new Error("当前设备不支持系统分享，请稍后重试");
+  if (!(await Sharing.isAvailableAsync())) throw new Error("This device does not support system sharing; try again later");
   await Sharing.shareAsync(file.uri, {
     mimeType: format === "json" ? "application/json" : "text/markdown",
     dialogTitle,
@@ -87,11 +87,11 @@ async function shareTextFile(fileName: string, content: string, format: LibraryE
 }
 
 function renderCharacterMarkdown(character: Character): string {
-  return `## ${character.name}\n\n- ID：${character.id}\n- 作品 ID：${character.projectId}\n- 图片路径：${character.imagePath || "暂无"}\n- 收藏：${character.isFavorited ? "是" : "否"}\n- 创建时间：${character.createdAt}\n- 更新时间：${character.updatedAt}\n\n### 角色设定\n\n${character.description || "暂无"}\n`;
+  return `## ${character.name}\n\n- ID: ${character.id}\n- Project ID: ${character.projectId}\n- Image path: ${character.imagePath || "none"}\n- Favourited: ${character.isFavorited ? "Yes" : "No"}\n- Created: ${character.createdAt}\n- Updated: ${character.updatedAt}\n\n### Character profile\n\n${character.description || "none"}\n`;
 }
 
 function renderWorldEntryMarkdown(entry: WorldInfoEntry): string {
-  return `## ${entry.name}\n\n- ID：${entry.id}\n- UID：${entry.uid}\n- 顺序：${entry.order}\n- 启用：${entry.isEnabled ? "是" : "否"}\n- Token 数：${entry.tokenCount}\n- 创建时间：${entry.createdAt}\n- 更新时间：${entry.updatedAt}\n\n### 条目内容\n\n${entry.content || "暂无"}\n`;
+  return `## ${entry.name}\n\n- ID: ${entry.id}\n- UID: ${entry.uid}\n- Order: ${entry.order}\n- Enabled: ${entry.isEnabled ? "Yes" : "No"}\n- Tokens: ${entry.tokenCount}\n- Created: ${entry.createdAt}\n- Updated: ${entry.updatedAt}\n\n### Entry content\n\n${entry.content || "none"}\n`;
 }
 
 export async function exportCharacters(
@@ -99,12 +99,12 @@ export async function exportCharacters(
   characters: Character[],
   format: LibraryExportFormat,
 ): Promise<void> {
-  if (!characters.length) throw new Error("没有可导出的角色");
+  if (!characters.length) throw new Error("There are no characters to export");
   const exportedAt = new Date().toISOString();
   const content = format === "json"
     ? JSON.stringify({ schemaVersion: "1.0", type: "openficm.characters", projectId: project.id, exportedAt, entries: characters }, null, 2)
-    : `# ${project.title} · 角色库\n\n- 作品 ID：${project.id}\n- 导出时间：${exportedAt}\n\n${characters.map(renderCharacterMarkdown).join("\n")}`;
-  await shareTextFile(libraryFileName(project.title, "角色库", format), content, format, "导出角色库");
+    : `# ${project.title} · Characters\n\n- Project ID: ${project.id}\n- Exported: ${exportedAt}\n\n${characters.map(renderCharacterMarkdown).join("\n")}`;
+  await shareTextFile(libraryFileName(project.title, "Characters", format), content, format, "Export characters");
 }
 
 export async function exportWorldInfo(
@@ -113,10 +113,10 @@ export async function exportWorldInfo(
   entries: WorldInfoEntry[],
   format: LibraryExportFormat,
 ): Promise<void> {
-  if (!entries.length) throw new Error("没有可导出的世界书条目");
+  if (!entries.length) throw new Error("There are no world book entries to export");
   const exportedAt = new Date().toISOString();
   const content = format === "json"
     ? JSON.stringify({ schemaVersion: "1.0", type: "openficm.world-info", projectId: project.id, exportedAt, worldInfo, entries }, null, 2)
-    : `# ${project.title} · ${worldInfo.name}\n\n- 作品 ID：${project.id}\n- 世界书 ID：${worldInfo.id}\n- 导出时间：${exportedAt}\n\n${worldInfo.description ? `${worldInfo.description}\n\n` : ""}${entries.map(renderWorldEntryMarkdown).join("\n")}`;
-  await shareTextFile(libraryFileName(project.title, "世界书", format), content, format, "导出世界书");
+    : `# ${project.title} · ${worldInfo.name}\n\n- Project ID: ${project.id}\n- World book ID: ${worldInfo.id}\n- Exported: ${exportedAt}\n\n${worldInfo.description ? `${worldInfo.description}\n\n` : ""}${entries.map(renderWorldEntryMarkdown).join("\n")}`;
+  await shareTextFile(libraryFileName(project.title, "World book", format), content, format, "Export world book");
 }

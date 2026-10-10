@@ -59,6 +59,6 @@ export function nextSampleWindow(input: {
 }
 
 export function describeWindow(unitKind: StyleUnitKind, window: StyleSampleWindow): string {
-  const unit = unitKind === "chapter" ? "章" : "段";
-  return `第 ${window.start + 1}-${window.start + window.count} ${unit}`;
+  const unit = unitKind === "chapter" ? "chapter" : "segment";
+  return `${unit} ${window.start + 1}-${window.start + window.count}`;
 }
